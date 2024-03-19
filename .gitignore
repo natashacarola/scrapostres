@@ -1,0 +1,10 @@
+#.gitignore
+
+# to ignore .env in any subdirectories
+**/.env
+
+# to ignore python cache files in any subdirectories
+**/__pycache__/
+
+# to ignore vscode settings in any subdirectories
+**/.vscode/
