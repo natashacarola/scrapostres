@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 import psycopg2
 from psycopg2 import Error
-from utils import execute_insert_query
+from utils import execute_insert_query, execute_fetch_query
 
 def request_page(page):
     our_headers = {
@@ -46,6 +46,14 @@ def scrap_category(category_html, connector):
 
 
 def scrap_recipe(recipe, connection):
+    # know if a recipe with the same url is already in the database
+    select_query = f"""
+        SELECT * FROM Recipes WHERE RecipeURL = '{recipe}'
+        """
+    result = execute_fetch_query(select_query, connection)
+    if result:
+        logger.info(f"Recipe {recipe} already in the database")
+        return
     recipe_html = parse_html(recipe)
     #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
     ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True).text_content()
@@ -53,15 +61,16 @@ def scrap_recipe(recipe, connection):
     recipe_html = parse_html(recipe)
     title = tryExcept(recipe_html, "//header[contains(@class,'recipes')]//h2[contains(@class,'title')]/text()", 0, True)
     instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
+    posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
     # instructions_text = ''.join(instructions).strip()
     category = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-category')]/text()",0,True)
     total_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-total')]/text()",0,True)
     prep_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-prep')]/text()",0,True)
-    posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
     updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     cuisine  = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-cuisine')]/text()",0,True)
 
     # la url es recipe
+
 
 
     insert_query = """
