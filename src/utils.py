@@ -16,4 +16,4 @@ def execute_insert_query(query, connection, values=None):
             cursor.execute(query)
     connection.commit()
     exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
-    logger.info(f"\tQuery: {_beautify_query(query)} \n\t\tExecution time: {exc_duration} ms")
+    logger.info(f"Query: {_beautify_query(query)} \n\tExecution time: {exc_duration} ms\n")

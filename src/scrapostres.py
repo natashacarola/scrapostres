@@ -11,7 +11,6 @@ import psycopg2
 from psycopg2 import Error
 from utils import execute_insert_query
 
-
 def request_page(page):
     our_headers = {
     'user-agent':
@@ -46,36 +45,31 @@ def scrap_category(category_html, connector):
         return
 
 
-def scrap_recipe(recipe, connector):
+def scrap_recipe(recipe, connection):
     recipe_html = parse_html(recipe)
     #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
-    #ingredients = tryExcept(recipe_html,"//div[contains(@class,'ingredients')]//ul",0,False)
+    ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True).text_content()
     hearts = 0
     recipe_html = parse_html(recipe)
     title = tryExcept(recipe_html, "//header[contains(@class,'recipes')]//h2[contains(@class,'title')]/text()", 0, True)
     instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
-    instructions_text = ''.join(instructions).strip()
+    # instructions_text = ''.join(instructions).strip()
     category = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-category')]/text()",0,True)
     total_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-total')]/text()",0,True)
     prep_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-prep')]/text()",0,True)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
-    update_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
+    updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     cuisine  = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-cuisine')]/text()",0,True)
 
     # la url es recipe
 
-    # TODO: Fix this
-    # category = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'details')]/span[contains(@class,'category')]") if i.text is not None])
-    # instructions = ' '.join([i.strip() for i in recipe_html.xpath("//div[contains(@class,'instructions')]//text()") if i.strip() != ''])
-    # cuisine = ', '.join([i for i in recipe_html.xpath("//span[contains(@class,'tasty-recipes-cuisine')]/text()") if i.text is not None])
-    # prep_time = ', '.join([i.text for i in recipe_html.xpath("//span[contains(@class,'prep')]/text()") if i.text is not None])
 
-    # insert_query = """
-    #     INSERT INTO Recipes (RecipeID, Name, Category, Ingredients, RecipeURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
-    #     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    #     """
-
-    # execute_insert_query(insert_query, connection, (None, title, category, ingredients, recipe, posted_date_text, updated_date_text, hearts, prep_time, total_time_text, cuisine))
+    insert_query = """
+        INSERT INTO Recipes (Name, Category, Ingredients, RecipeURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+    values = (title, category, ingredients, recipe, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
+    execute_insert_query(insert_query, connection, values)
 
 def has_next_page(page_html):
     link = page_html.xpath("//li[contains(@class,'pagination-next')]/a/@href")
