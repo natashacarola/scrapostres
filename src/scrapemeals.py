@@ -56,22 +56,35 @@ def scrap_recipe(recipe, connection):
         return
     recipe_html = parse_html(recipe)
     #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
-    ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True).text_content()
+    ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True)
+    if ingredients is not None:
+        ingredients = ingredients.text_content()
+    else:
+        return
     hearts = 0
     recipe_html = parse_html(recipe)
-    title = tryExcept(recipe_html, "//header[contains(@class,'recipes')]//h2[contains(@class,'title')]/text()", 0, True)
-    instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
+    title = tryExcept(recipe_html, "//h1[@class='entry-title']//text()", 0, True)
+    # instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
     # instructions_text = ''.join(instructions).strip()
-    category = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-category')]/text()",0,True)
-    total_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-total')]/text()",0,True)
-    prep_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-prep')]/text()",0,True)
+    category = tryExcept(recipe_html,"//div[@class='breadcrumb']//span[2]//text()",0,True)
+    prep_time = tryExcept(recipe_html,"//span[contains(@class, 'recipe-prep_time-minutes')]//text()",0,True)
+    if prep_time is not None:
+        prep_time = prep_time + " minutes"
+    else:
+        logger.warning(f"Prep time not found for recipe {recipe}, skipping it")
+        return
+    total_time = tryExcept(recipe_html,"//span[contains(@class, 'recipe-cook_time-minutes')]//text()",0,True)
+    if not total_time:
+        total_time = tryExcept(recipe_html,"//span[contains(@class, 'recipe-cook_time-hours')]//text()",0,True)
+        if total_time:
+            total_time = prep_time + " + " + total_time + " hours"
+    else:
+        total_time = prep_time + " + " + total_time + " minutes"
     updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
-    cuisine  = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-cuisine')]/text()",0,True)
+    cuisine  = tryExcept(recipe_html,"//span[contains(@class, 'wprm-recipe-cuisine wprm-block-text-normal')]//text()",0,True)
 
     # la url es recipe
-
-
 
     insert_query = """
         INSERT INTO Recipes (Name, Category, Ingredients, RecipeURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
@@ -79,7 +92,7 @@ def scrap_recipe(recipe, connection):
         """
     values = (title, category, ingredients, recipe, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
     execute_insert_query(insert_query, connection, values)
-    logger.info(f"Recipe '{title}' inserted in the database")
+    logger.info(f"Recipe '{title}' inserted into the database")
 
 def has_next_page(page_html):
     link = page_html.xpath("//li[contains(@class,'pagination-next')]/a/@href")
@@ -105,10 +118,10 @@ def main():
         print("Error while connecting to PostgreSQL", error)
         return
 
-    home_page = 'https://www.sweetestmenu.com/'
+    home_page = 'https://www.recipetineats.com/'
     home_html = parse_html(home_page)
 
-    categories = home_html.xpath("//a[contains(@href,'recipes')]/following-sibling::ul//a/@href")
+    categories = home_html.xpath("//a[contains(@href,'category')]//@href")
 
     for category in categories:
         category_html = parse_html(category)
