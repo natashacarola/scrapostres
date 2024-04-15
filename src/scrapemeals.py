@@ -93,6 +93,7 @@ def scrap_recipe(recipe, connection):
         """
     values = (title, category, ingredients, recipe, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
     execute_insert_query(insert_query, connection, values)
+
     logger.info(f"Recipe '{title}' inserted into the database")
 
 def has_next_page(page_html):
