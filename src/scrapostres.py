@@ -68,12 +68,14 @@ def scrap_category(category_html, json_page, connector):
 def scrap_recipe(recipe, json_page, connection):
     # know if a recipe with the same url is already in the database
     select_query = f"""
-        SELECT * FROM Recipes WHERE RecipeURL = '{recipe}'
+        SELECT updated_date FROM Recipes WHERE RecipeURL = '{recipe}'
         """
-    result = execute_fetch_query(select_query, connection)
-    if result:
+    last_date = execute_fetch_query(select_query, connection)
+    updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
+    if last_date and last_date[0] == updated_date:
         logger.info(f"Recipe {recipe} already in the database")
         return
+    
     recipe_html = parse_html(recipe)
     recipe_html = parse_html(recipe)
     data_filt = filt_data_json(json_page)
@@ -88,7 +90,6 @@ def scrap_recipe(recipe, json_page, connection):
     category = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-category')]/text()",0,True)
     total_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-total')]/text()",0,True)
     prep_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-prep')]/text()",0,True)
-    updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     cuisine  = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-cuisine')]/text()",0,True)
 
     data_filt = filt_data_json(json_page)

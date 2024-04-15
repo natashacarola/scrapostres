@@ -48,12 +48,14 @@ def scrap_category(category_html, connector):
 def scrap_recipe(recipe, connection):
     # know if a recipe with the same url is already in the database
     select_query = f"""
-        SELECT * FROM Recipes WHERE RecipeURL = '{recipe}'
+        SELECT updated_date FROM Recipes WHERE RecipeURL = '{recipe}'
         """
-    result = execute_fetch_query(select_query, connection)
-    if result:
+    last_date = execute_fetch_query(select_query, connection)
+    updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
+    if last_date and last_date[0] == updated_date:
         logger.info(f"Recipe {recipe} already in the database")
         return
+    
     recipe_html = parse_html(recipe)
     #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
     ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True)
@@ -81,7 +83,6 @@ def scrap_recipe(recipe, connection):
             total_time = prep_time + " + " + total_time + " hours"
     else:
         total_time = prep_time + " + " + total_time + " minutes"
-    updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     cuisine  = tryExcept(recipe_html,"//span[contains(@class, 'wprm-recipe-cuisine wprm-block-text-normal')]//text()",0,True)
 
     # la url es recipe
