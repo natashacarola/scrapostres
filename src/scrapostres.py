@@ -25,7 +25,7 @@ def request_api(api_url, params):
     if respuesta.status_code == 200 :
         return respuesta.json()
     else:
-        #logger.error(f"Can't do a request to: {api_url} || STATUS CODE: {respuesta.status_code()}")
+        logger.error(f"Can't do a request to: {api_url} || STATUS CODE: {respuesta.status_code()}")
         return
 
 def request_page(page):
@@ -37,7 +37,7 @@ def request_page(page):
     if respuesta.status_code == 200:
         return respuesta
     else:
-        #logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code()}")
+        logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code()}")
         return
 
 def parse_html(page):
@@ -75,17 +75,15 @@ def scrap_recipe(recipe, json_page, connection):
         logger.info(f"Recipe {recipe} already in the database")
         return
     recipe_html = parse_html(recipe)
-    #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
-    #ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True).text_content()
     recipe_html = parse_html(recipe)
     data_filt = filt_data_json(json_page)
 
     hearts = 0
     ingredients = []
-    instructions_text = ''
+    #instructions_text = ''
 
     title = tryExcept(recipe_html, "//header[contains(@class,'recipes')]//h2[contains(@class,'title')]/text()", 0, True)
-    instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
+    #instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
     category = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-category')]/text()",0,True)
     total_time = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-total')]/text()",0,True)
@@ -94,10 +92,10 @@ def scrap_recipe(recipe, json_page, connection):
     cuisine  = tryExcept(recipe_html,"//span[contains(@class,'tasty-recipes-cuisine')]/text()",0,True)
 
     data_filt = filt_data_json(json_page)
-    try:
-            instructions_text = ''.join(instructions).strip().split('Instructions')[1]
-    except IndexError as e:
-            instructions_text = ''
+    #try:
+    #        instructions_text = ''.join(instructions).strip().split('Instructions')[1]
+    #except IndexError as e:
+    #        return
 
     for data in data_filt:
         if data['Url'] == recipe:
