@@ -26,29 +26,29 @@ def parse_html(page):
 
 def scrap_holiday(holiday_name, holiday_html, connector):
     recipes = holiday_html.xpath("//div[contains(@class,'content')]//a[contains(@class,'title')]/@href")
-    print(recipes)
+
     for recipe in recipes:
         select_query = f"""
-            SELECT id FROM Recipes WHERE RecipeURL = '{recipe}'
+            SELECT RecipeID FROM Recipes WHERE RecipeURL = '{recipe}'
             """
         recipe_id = execute_fetch_query(select_query, connector)
         if not recipe_id:
             logger.warn(f"Recipe {recipe} not found in the Recipes database, skipping")
             continue
-        recipe_id = recipe_id[0]
-
+        recipe_id = int(recipe_id[0]['recipeid'])
+ 
         # check if the recipe is already in the holiday
         select_query = f"""
-            SELECT id FROM RecipeHoliday WHERE RecipeID = '{recipe_id}'
+            SELECT * FROM Holidays WHERE RecipeID = '{recipe_id}'
             """
-        recipe_holiday_id = execute_fetch_query(select_query, connector)
-        if not recipe_holiday_id:
+        recipe_holiday_in_db = execute_fetch_query(select_query, connector)
+        if not recipe_holiday_in_db:
             insert_query = """
                 INSERT INTO Holidays (RecipeID, Valentines, Christmas, Easter, Summer)
                 VALUES (%s, %s, %s, %s, %s)
                 """
             values = (recipe_id, False, False, False, False)
-            execute_insert_query(insert_query, values, connector)
+            execute_insert_query(insert_query, connector, values)
             logger.info(f"Recipe {recipe} added to the Holidays table")
 
         # update the holiday
@@ -58,12 +58,12 @@ def scrap_holiday(holiday_name, holiday_html, connector):
             WHERE RecipeID = '{recipe_id}'
             """
         execute_insert_query(update_query, connector)
-        logger.info(f"Holiday {holiday_name} updated for recipe {recipe}")
+        logger.info(f"Recipe {recipe} updated in the Holidays table for {holiday_name}")
 
     holiday_next_page = has_next_page(holiday_html)
     if (holiday_next_page is not None):
         next_page_html = parse_html(holiday_next_page)
-        scrap_holiday(next_page_html, connector)
+        scrap_holiday(holiday_name, next_page_html, connector)
     else:
         return
 
