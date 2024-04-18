@@ -83,17 +83,9 @@ def main():
     load_dotenv()
     logger.basicConfig(stream=sys.stdout, level=logger.INFO)
 
-    try:
-        connection = psycopg2.connect(
-            user=os.environ["POSTGRES_USER"],
-            password=os.environ["POSTGRES_PASSWORD"],
-            host=os.environ["POSTGRES_HOST"],
-            port=os.environ["POSTGRES_PORT"],
-            database=os.environ["POSTGRES_DB"],
-        )
-
-    except (Exception, Error) as error:
-        print("Error while connecting to PostgreSQL", error)
+    connection = get_connection()
+    if not connection:
+        logger.error(f"Error while connecting to PostgreSQL: {e}")
         return
 
     home_page = 'https://www.sweetestmenu.com/'

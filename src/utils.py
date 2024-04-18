@@ -4,7 +4,20 @@ from typing import Optional
 import requests as rq
 from lxml import html
 import psycopg2
+import os
 from typing import Callable, Any
+
+def get_connection() -> Optional[psycopg2.extensions.connection]:
+    try:
+        connection = psycopg2.connect(
+            user=os.environ["POSTGRES_USER"],
+            password=os.environ["POSTGRES_PASSWORD"],
+            host=os.environ["POSTGRES_HOST"],
+            port=os.environ["POSTGRES_PORT"],
+            database=os.environ["POSTGRES_DB"],
+        )
+    except psycopg2.OperationalError as e:
+        return None
 
 def _beautify_query(query: str) -> str:
     query = ' '.join(query.split())
