@@ -30,6 +30,9 @@ def request_api(api_url, params):
 
 def scrap_recipe(recipe, connection, json_page):
     recipe_html = parse_html(recipe)
+    if not recipe_html:
+        logger.error(f"Can't parse the recipe {recipe}")
+        return
     data_filt = filt_data_json(json_page)
     # know if a recipe with the same url is already in the database
     select_query = f"""
@@ -95,6 +98,9 @@ def main():
 
     home_page = 'https://www.sweetestmenu.com/'
     home_html = parse_html(home_page)
+    if not home_html:
+        logger.error(f"Can't parse the home page {home_page}")
+        return
 
     url_api = 'https://c06f.app.slickstream.com/p/embed-site-info-v2'
     params_api = {
@@ -105,6 +111,9 @@ def main():
 
     for category in categories:
         category_html = parse_html(category)
+        if not category_html:
+            logger.error(f"Can't parse the category {category}")
+            continue
         scrap_category(category_html, connection, scrap_recipe, json_page)
 
     connection.close()

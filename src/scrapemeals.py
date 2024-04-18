@@ -11,9 +11,11 @@ import psycopg2
 from psycopg2 import Error
 from utils import *
 
-
-def scrap_recipe(recipe, connection, json_page=None):
+def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_page=None) -> None:
     recipe_html = parse_html(recipe)
+    if not recipe_html:
+        logger.error(f"Can't parse the recipe {recipe}")
+        return
     # know if a recipe with the same url is already in the database
     select_query = f"""
         SELECT UpdatedDate FROM Recipes WHERE RecipeURL = '{recipe}'
@@ -31,7 +33,7 @@ def scrap_recipe(recipe, connection, json_page=None):
     else:
         return
     hearts = 0
-    recipe_html = parse_html(recipe)
+
     title = tryExcept(recipe_html, "//h1[@class='entry-title']//text()", 0, True)
     # instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
@@ -82,11 +84,17 @@ def main():
 
     home_page = 'https://www.recipetineats.com/'
     home_html = parse_html(home_page)
+    if not home_html:
+        logger.error(f"Can't parse the home page {home_page}")
+        return
 
     categories = home_html.xpath("//a[contains(@href,'category')]//@href")
 
     for category in categories:
         category_html = parse_html(category)
+        if not category_html:
+            logger.error(f"Can't parse the category {category}")
+            continue
         scrap_category(category_html, connection, scrap_recipe)
 
     connection.close()

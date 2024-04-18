@@ -16,11 +16,12 @@ def scrap_holiday(holiday_name: str, holiday_html: html.HtmlElement, connector: 
         select_query = f"""
             SELECT RecipeID FROM Recipes WHERE RecipeURL = '{recipe}'
             """
-        recipe_id = execute_fetch_query(select_query, connector)
-        if not recipe_id:
+        recipe_id_result = execute_fetch_query(select_query, connector)
+        
+        if not recipe_id_result:
             logger.warn(f"Recipe {recipe} not found in the Recipes database, skipping")
             continue
-        recipe_id = int(recipe_id[0]['recipeid'])
+        recipe_id = int(recipe_id_result[0]['recipeid'])
  
         # check if the recipe is already in the holiday
         select_query = f"""
@@ -80,6 +81,7 @@ def main():
         holiday = holidays_names[i]
         holiday_html = parse_html(url)
         if holiday_html is None:
+            logger.error(f"Can't parse the holiday {holiday}")
             continue
         scrap_holiday(holiday, holiday_html, connection)
 
