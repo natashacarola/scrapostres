@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 import psycopg2
 from psycopg2 import Error
-from utils import execute_insert_query, execute_fetch_query
+from utils import *
 
 def filt_data_json(page_json):
     data_filt = []
@@ -28,57 +28,18 @@ def request_api(api_url, params):
         logger.error(f"Can't do a request to: {api_url} || STATUS CODE: {respuesta.status_code}")
         return
 
-def request_page(page):
-    our_headers = {
-    'user-agent':
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36'
-    }
-    respuesta = rq.get(page,headers = our_headers)
-    if respuesta.status_code == 200:
-        return respuesta
-    else:
-        logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code}")
-        return
-
-def parse_html(page):
-    result = request_page(page)
-    return html.fromstring(result.content)
-
-def tryExcept(page,data,index,boolean):
-    try:
-        if(boolean):
-            return  page.xpath(data)[index]
-        else:
-            return page.xpath(data)
-    except IndexError as e:
-        return None
-
-def scrap_category(category_html, json_page, connector):
-    recipes = category_html.xpath("//div[contains(@class,'content')]//a[contains(@class,'title')]/@href")
-    for recipe in recipes:
-        scrap_recipe(recipe, json_page, connector)
-
-    category_next_page = has_next_page(category_html)
-    if (category_next_page is not None):
-        next_page_html = parse_html(category_next_page)
-        scrap_category(next_page_html, json_page, connector)
-    else:
-        return
-
-def scrap_recipe(recipe, json_page, connection):
+def scrap_recipe(recipe, connection, json_page):
+    recipe_html = parse_html(recipe)
+    data_filt = filt_data_json(json_page)
     # know if a recipe with the same url is already in the database
     select_query = f"""
-        SELECT updated_date FROM Recipes WHERE RecipeURL = '{recipe}'
+        SELECT UpdatedDate FROM Recipes WHERE RecipeURL = '{recipe}'
         """
     last_date = execute_fetch_query(select_query, connection)
     updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     if last_date and last_date[0] == updated_date:
         logger.info(f"Recipe {recipe} already in the database")
         return
-    
-    recipe_html = parse_html(recipe)
-    recipe_html = parse_html(recipe)
-    data_filt = filt_data_json(json_page)
 
     hearts = 0
     ingredients = []
@@ -115,13 +76,6 @@ def scrap_recipe(recipe, json_page, connection):
     execute_insert_query(insert_query, connection, values)
     logger.info(f"Recipe '{title}' inserted in the database")
 
-def has_next_page(page_html):
-    link = page_html.xpath("//li[contains(@class,'pagination-next')]/a/@href")
-    if link:
-        return link[0]
-    else:
-        return None
-
 def main():
     load_dotenv()
     logger.basicConfig(stream=sys.stdout, level=logger.INFO)
@@ -151,7 +105,7 @@ def main():
 
     for category in categories:
         category_html = parse_html(category)
-        scrap_category(category_html, json_page, connection)
+        scrap_category(category_html, connection, scrap_recipe, json_page)
 
     connection.close()
 
