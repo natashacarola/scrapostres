@@ -7,8 +7,9 @@ import sys
 import psycopg2
 from psycopg2 import Error
 from utils import execute_insert_query, execute_fetch_query
+from typing import Optional
 
-def request_page(page):
+def request_page(page: str) -> Optional[rq.Response]:
     our_headers = {
     'user-agent':
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36'
@@ -17,14 +18,16 @@ def request_page(page):
     if respuesta.status_code == 200:
         return respuesta
     else:
-        logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code()}")
-        return
+        logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code}")
+        return None
 
-def parse_html(page):
+def parse_html(page: str) -> Optional[html.HtmlElement]:
     result = request_page(page)
+    if result is None:
+        return None
     return html.fromstring(result.content)
 
-def scrap_holiday(holiday_name, holiday_html, connector):
+def scrap_holiday(holiday_name: str, holiday_html: html.HtmlElement, connector: psycopg2.extensions.connection) -> None:
     recipes = holiday_html.xpath("//div[contains(@class,'content')]//a[contains(@class,'title')]/@href")
 
     for recipe in recipes:
@@ -61,14 +64,13 @@ def scrap_holiday(holiday_name, holiday_html, connector):
         logger.info(f"Recipe {recipe} updated in the Holidays table for {holiday_name}")
 
     holiday_next_page = has_next_page(holiday_html)
-    if (holiday_next_page is not None):
+    if holiday_next_page is not None:
         next_page_html = parse_html(holiday_next_page)
-        scrap_holiday(holiday_name, next_page_html, connector)
-    else:
-        return
+        if next_page_html is not None:
+            scrap_holiday(holiday_name, next_page_html, connector)
 
 
-def has_next_page(page_html):
+def has_next_page(page_html: html.HtmlElement) -> Optional[str]:
     link = page_html.xpath("//li[contains(@class,'pagination-next')]/a/@href")
     if link:
         return link[0]
@@ -94,6 +96,8 @@ def main():
 
     recipes_page = 'https://www.sweetestmenu.com/recipes/'
     recipes_html = parse_html(recipes_page)
+    if recipes_html is None:
+        return
     holidays = recipes_html.xpath("//li[@id='menu-item-24786']//following-sibling::ul//a/@href")
     holidays_names = recipes_html.xpath("//li[@id='menu-item-24786']//following-sibling::ul//a//text()")
 
@@ -101,6 +105,8 @@ def main():
         url = holidays[i]
         holiday = holidays_names[i]
         holiday_html = parse_html(url)
+        if holiday_html is None:
+            continue
         scrap_holiday(holiday, holiday_html, connection)
 
     connection.close()

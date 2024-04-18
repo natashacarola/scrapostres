@@ -25,7 +25,7 @@ def request_api(api_url, params):
     if respuesta.status_code == 200 :
         return respuesta.json()
     else:
-        logger.error(f"Can't do a request to: {api_url} || STATUS CODE: {respuesta.status_code()}")
+        logger.error(f"Can't do a request to: {api_url} || STATUS CODE: {respuesta.status_code}")
         return
 
 def request_page(page):
@@ -37,7 +37,7 @@ def request_page(page):
     if respuesta.status_code == 200:
         return respuesta
     else:
-        logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code()}")
+        logger.error(f"Can't do a request to: {page} || STATUS CODE: {respuesta.status_code}")
         return
 
 def parse_html(page):
