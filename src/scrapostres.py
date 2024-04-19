@@ -67,15 +67,16 @@ def scrap_recipe(recipe, connection, json_page):
             ingredients = data['Ingredients']
             hearts = data['Hearts']
 
-    # la url es recipe
+    instructions = None #TODO
+    image_url = None #TODO
 
 
 
     insert_query = """
-        INSERT INTO Recipes (Name, Category, Ingredients, RecipeURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO Recipes (Name, Category, Ingredients, RecipeURL, Instructions, ImageURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    values = (title, category, ingredients, recipe, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
+    values = (title, category, ingredients, recipe, instructions, image_url, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
     execute_insert_query(insert_query, connection, values)
     logger.info(f"Recipe '{title}' inserted in the database")
 

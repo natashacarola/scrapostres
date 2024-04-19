@@ -54,13 +54,17 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
         total_time = prep_time + " + " + total_time + " minutes"
     cuisine  = tryExcept(recipe_html,"//span[contains(@class, 'wprm-recipe-cuisine wprm-block-text-normal')]//text()",0,True)
 
-    # la url es recipe
+    instructions = None #TODO
+    image_url = None #TODO
+
+
 
     insert_query = """
-        INSERT INTO Recipes (Name, Category, Ingredients, RecipeURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO Recipes (Name, Category, Ingredients, RecipeURL, Instructions, ImageURL, PostedDate, UpdatedDate, Hearts, PrepTime, TotalTime, Cuisine)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    values = (title, category, ingredients, recipe, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
+    values = (title, category, ingredients, recipe, instructions, image_url, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
+    
     execute_insert_query(insert_query, connection, values)
 
     logger.info(f"Recipe '{title}' inserted into the database")

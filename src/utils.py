@@ -25,37 +25,43 @@ def _beautify_query(query: str) -> str:
     return query
 
 def execute_insert_query(query: str, connection: psycopg2.extensions.connection, values=None) -> None:
-    with connection.cursor() as cursor:    
-        time_now = time.time()  
-        if values:
-            cursor.execute(query, values)
-        else:
-            cursor.execute(query)
-    connection.commit()
-    exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
-    # logger.info(f"Query: {_beautify_query(query)} \n\tExecution time: {exc_duration} ms\n")
+    try:
+        with connection.cursor() as cursor:    
+            time_now = time.time()  
+            if values:
+                cursor.execute(query, values)
+            else:
+                cursor.execute(query)
+        connection.commit()
+        exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
+        # logger.info(f"Query: {_beautify_query(query)} \n\tExecution time: {exc_duration} ms\n")
+    except psycopg2.Error as e:
+        logger.error(f"Error executing query: {e}")
 
 def execute_fetch_query(query: str, connection: psycopg2.extensions.connection) -> Optional[list]:
-    cursor = connection.cursor()
+    try:
+        with connection.cursor() as cursor:
+                
+            # info_string = ""
+            
+            time_now = time.time()
+            cursor.execute(query)
+            exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
+            # info_string += f"Query: {_beautify_query(query)} \n\t\tExecution time: {exc_duration} ms"
 
-    # info_string = ""
-    
-    time_now = time.time()
-    cursor.execute(query)
-    exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
-    # info_string += f"Query: {_beautify_query(query)} \n\t\tExecution time: {exc_duration} ms"
+            if cursor.description is not None:
+                column_names = [column[0] for column in cursor.description]
+                data = [dict(zip(column_names, row)) for row in cursor.fetchall()]
+            else:
+                data = None
 
-    if cursor.description is not None:
-        column_names = [column[0] for column in cursor.description]
-        data = [dict(zip(column_names, row)) for row in cursor.fetchall()]
-    else:
-        data = None
-
-    # info_string += f"\n\tRows: {len(data)}"
-    # info_string += f"\n\tFirst row: {data[:1]}\n"
-    # logger.info(info_string)
-    cursor.close()
-    return data
+            # info_string += f"\n\tRows: {len(data)}"
+            # info_string += f"\n\tFirst row: {data[:1]}\n"
+            # logger.info(info_string)
+        return data
+    except psycopg2.Error as e:
+        logger.error(f"Error executing query: {e}")
+        return None
 
 def _request_page(page: str) -> Optional[rq.Response]:
     our_headers = {
