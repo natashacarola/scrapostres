@@ -8,3 +8,4 @@ Tareas del scraper (para todos los scrapers):
 - Recibir img (una por receta) (el url)
 - Parseo de tipos (fechas, tiempos de preparación y cocción en minutos, etcetc)
 + Modularizar el código (llavarlo a utils) [Listo]
+- Merge a main
