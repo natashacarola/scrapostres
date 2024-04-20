@@ -6,6 +6,8 @@ from lxml import html
 import psycopg2
 import os
 from typing import Callable, Any
+import re
+from datetime import date
 
 def get_connection() -> Union[psycopg2.extensions.connection, None]:
     try:
@@ -108,3 +110,35 @@ def scrap_category(category_html: html.HtmlElement, connector: psycopg2.extensio
         next_page_html = parse_html(category_next_page)
         if next_page_html is not None:
             scrap_category(next_page_html, connector, scraper_func, json_page)
+
+def parse_date(date_obtained):
+    # dates examples 3/03/19 o 31 Jan '23
+    months = {
+        "Jan" : 1,
+        "Feb" : 2,
+        "Mar" : 3,
+        "Apr" : 4,
+        "May" : 5,
+        "Jun" : 6,
+        "Jul" : 7,
+        "Aug" : 8,
+        "Sep" : 9,
+        "Oct" : 10,
+        "Nov" : 11,
+        "Dec" : 12
+    }
+    regex_date = r"(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) '(\d{2})"
+    match = re.match(regex_date,date_obtained)
+    if (match):
+        d, m, y = match.groups()
+        day = int(d)
+        month = months[m]
+        year = int(y) + 2000
+        new_date = date(year,month,day)
+        return new_date
+    else:
+        date_parts = date_obtained.strip().split("/")
+        month, day, year = map(int, date_parts)
+        year += 2000
+        new_date = date(year,month,day)
+        return new_date
