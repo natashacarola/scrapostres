@@ -1,13 +1,13 @@
 import time
 import logging as logger
-from typing import Optional
+from typing import Optional, Union
 import requests as rq
 from lxml import html
 import psycopg2
 import os
 from typing import Callable, Any
 
-def get_connection() -> Optional[psycopg2.extensions.connection]:
+def get_connection() -> Union[psycopg2.extensions.connection, None]:
     try:
         connection = psycopg2.connect(
             user=os.environ["POSTGRES_USER"],
@@ -16,6 +16,7 @@ def get_connection() -> Optional[psycopg2.extensions.connection]:
             port=os.environ["POSTGRES_PORT"],
             database=os.environ["POSTGRES_DB"],
         )
+        return connection
     except psycopg2.OperationalError as e:
         return None
 
@@ -26,8 +27,8 @@ def _beautify_query(query: str) -> str:
 
 def execute_insert_query(query: str, connection: psycopg2.extensions.connection, values=None) -> None:
     try:
-        with connection.cursor() as cursor:    
-            time_now = time.time()  
+        with connection.cursor() as cursor:
+            time_now = time.time()
             if values:
                 cursor.execute(query, values)
             else:
@@ -41,9 +42,9 @@ def execute_insert_query(query: str, connection: psycopg2.extensions.connection,
 def execute_fetch_query(query: str, connection: psycopg2.extensions.connection) -> Optional[list]:
     try:
         with connection.cursor() as cursor:
-                
+
             # info_string = ""
-            
+
             time_now = time.time()
             cursor.execute(query)
             exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
@@ -87,7 +88,7 @@ def has_next_page(page_html: html.HtmlElement) -> Optional[str]:
         return link[0]
     else:
         return None
-    
+
 def tryExcept(page: html.HtmlElement, data: str, index: int, boolean: bool):
     try:
         if(boolean):

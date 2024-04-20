@@ -8,8 +8,9 @@ from datetime import datetime
 import psycopg2
 from psycopg2 import Error
 from utils import *
+from typing import Union
 
-def filt_data_json(page_json):
+def filt_data_json(page_json: dict) -> list:
     data_filt = []
     for page in page_json['pages']:
         try:
@@ -20,15 +21,15 @@ def filt_data_json(page_json):
 
     return data_filt
 
-def request_api(api_url, params):
+def request_api(api_url: str, params: dict) -> Union[dict, None]:
     respuesta = rq.get(api_url,params=params)
     if respuesta.status_code == 200 :
         return respuesta.json()
     else:
         logger.error(f"Can't do a request to: {api_url} || STATUS CODE: {respuesta.status_code}")
-        return
+        return None
 
-def scrap_recipe(recipe, connection, json_page):
+def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_page: dict) -> None:
     recipe_html = parse_html(recipe)
     if not recipe_html:
         logger.error(f"Can't parse the recipe {recipe}")
