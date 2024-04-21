@@ -38,6 +38,9 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
     hearts = 0
 
     title = tryExcept(recipe_html, "//h1[@class='entry-title']//text()", 0, True)
+    if not title:
+        logger.warning(f"Title not found for recipe {recipe}, skipping it")
+        return
     # instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
     posted_date = parse_date(posted_date)

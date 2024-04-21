@@ -18,6 +18,8 @@ def get_connection() -> Union[psycopg2.extensions.connection, None]:
             port=os.environ["POSTGRES_PORT"],
             database=os.environ["POSTGRES_DB"],
         )
+        
+        connection.autocommit = True
         return connection
     except psycopg2.OperationalError as e:
         return None
@@ -35,7 +37,6 @@ def execute_insert_query(query: str, connection: psycopg2.extensions.connection,
                 cursor.execute(query, values)
             else:
                 cursor.execute(query)
-        connection.commit()
         exc_duration = round(round(time.time() - time_now, 4) * 1000, 1)
         # logger.info(f"Query: {_beautify_query(query)} \n\tExecution time: {exc_duration} ms\n")
     except psycopg2.Error as e:
