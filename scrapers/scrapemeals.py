@@ -21,9 +21,12 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
     last_date = execute_fetch_query(select_query, connection)
     updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     updated_date = parse_date(updated_date)
-    if last_date and last_date[0] == updated_date:
-        logger.info(f"Recipe {recipe} already in the database")
-        return
+    if last_date:
+        last_date_str = last_date[0]['updateddate'].strftime('%Y-%m-%d')
+        updated_date_str = updated_date.strftime('%Y-%m-%d')
+        if last_date_str == updated_date_str:
+            logger.info(f"Recipe {recipe} already in the database")
+            return
 
     #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
     ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True)
@@ -35,6 +38,9 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
     hearts = 0
 
     title = tryExcept(recipe_html, "//h1[@class='entry-title']//text()", 0, True)
+    if not title:
+        logger.warning(f"Title not found for recipe {recipe}, skipping it")
+        return
     # instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
     posted_date = parse_date(posted_date)
