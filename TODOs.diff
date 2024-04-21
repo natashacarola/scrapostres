@@ -1,0 +1,11 @@
+Tareas del scraper (para todos los scrapers):
++ Manejo de tipos (utils, scrapidays, scrapmeals)
+- Manejo de tipos (scrapostres)
++ Manejo de errores
++ Dejar una variable para las instrucciones y la img para agregar en la db
++ Manejar errores al insertar en la db
+- Recibir lista de ingredientes prolija
+- Recibir img (una por receta) (el url)
+- Parseo de tipos (fechas, tiempos de preparación y cocción en minutos, etcetc)
++ Modularizar el código (llavarlo a utils) [Listo]
+- Merge a main
