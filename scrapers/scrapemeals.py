@@ -1,11 +1,9 @@
 import os
 from dotenv import load_dotenv
 import requests as rq
-#from bs4 import BeautifulSoup
 from lxml import html
 import logging as logger
 import sys
-#import mysql.connector
 from datetime import datetime
 import psycopg2
 from psycopg2 import Error
@@ -22,26 +20,29 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
         """
     last_date = execute_fetch_query(select_query, connection)
     updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
+    updated_date = parse_date(updated_date)
     if last_date and last_date[0] == updated_date:
         logger.info(f"Recipe {recipe} already in the database")
         return
-    
+
     #ingredients = ', '.join([i.text for i in recipe_html.xpath("//div[contains(@class,'ingredients')]//ul/li") if i.text is not None])
     ingredients = tryExcept(recipe_html,"//div[contains(@class, 'ingredients')]",0,True)
     if ingredients is not None:
-        ingredients = ingredients.text_content()
+        ingredients = ingredients.text_content().replace("Ingredients","").replace("▢","")
     else:
         return
+
     hearts = 0
 
     title = tryExcept(recipe_html, "//h1[@class='entry-title']//text()", 0, True)
     # instructions = tryExcept(recipe_html,"//div[contains(@class,'instructions')]//text()",0,False)
     posted_date = tryExcept(recipe_html,"//time[contains(@class,'entry-time')]/text()",0,True)
+    posted_date = parse_date(posted_date)
     # instructions_text = ''.join(instructions).strip()
     category = tryExcept(recipe_html,"//div[@class='breadcrumb']//span[2]//text()",0,True)
     prep_time = tryExcept(recipe_html,"//span[contains(@class, 'recipe-prep_time-minutes')]//text()",0,True)
     if prep_time is not None:
-        prep_time = prep_time + " minutes"
+        prep_time = int(prep_time) #+ " minutes"
     else:
         logger.warning(f"Prep time not found for recipe {recipe}, skipping it")
         return
@@ -49,13 +50,15 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
     if not total_time:
         total_time = tryExcept(recipe_html,"//span[contains(@class, 'recipe-cook_time-hours')]//text()",0,True)
         if total_time:
-            total_time = prep_time + " + " + total_time + " hours"
+            total_time = prep_time + int(total_time) * 60
+        else:
+            total_time = prep_time
     else:
-        total_time = prep_time + " + " + total_time + " minutes"
+        total_time = prep_time + int(total_time)
     cuisine  = tryExcept(recipe_html,"//span[contains(@class, 'wprm-recipe-cuisine wprm-block-text-normal')]//text()",0,True)
 
     instructions = None #TODO
-    image_url = None #TODO
+    image_url = tryExcept(recipe_html, "//img[contains(@src,'.jpg')]/@src", 0, True)
 
 
 
@@ -64,7 +67,7 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     values = (title, category, ingredients, recipe, instructions, image_url, posted_date, updated_date, hearts, prep_time, total_time, cuisine)
-    
+
     execute_insert_query(insert_query, connection, values)
 
     logger.info(f"Recipe '{title}' inserted into the database")
