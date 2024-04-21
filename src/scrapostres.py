@@ -51,9 +51,12 @@ def scrap_recipe(recipe: str, connection: psycopg2.extensions.connection, json_p
     last_date = execute_fetch_query(select_query, connection)
     updated_date = tryExcept(recipe_html,"//time[contains(@class,'entry-modified')]/text()",0,True)
     updated_date = parse_date(updated_date)
-    if last_date and last_date[0] == updated_date:
-        logger.info(f"Recipe {recipe} already in the database")
-        return
+    if last_date:
+        last_date_str = last_date[0]['updateddate'].strftime('%Y-%m-%d')
+        updated_date_str = updated_date.strftime('%Y-%m-%d')
+        if last_date_str == updated_date_str:
+            logger.info(f"Recipe {recipe} already in the database")
+            return
 
     hearts = 0
     ingredients = None
