@@ -1,6 +1,11 @@
+from functools import partial
 import logging
 import os
 from dotenv import load_dotenv
+import psycopg2
+from utils import *
+from querys import *
+import random
 
 from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
@@ -50,24 +55,6 @@ def echo(update: Update, context: CallbackContext) -> None:
         update.message.copy(update.message.chat_id)
 
 
-def scream(update: Update, context: CallbackContext) -> None:
-    """
-    This function handles the /scream command
-    """
-
-    global screaming
-    screaming = True
-
-
-def whisper(update: Update, context: CallbackContext) -> None:
-    """
-    This function handles /whisper command
-    """
-
-    global screaming
-    screaming = False
-
-
 def menu(update: Update, context: CallbackContext) -> None:
     """
     This handler sends a menu with the inline buttons we pre-assigned above
@@ -79,6 +66,38 @@ def menu(update: Update, context: CallbackContext) -> None:
         parse_mode=ParseMode.HTML,
         reply_markup=FIRST_MENU_MARKUP
     )
+
+def send_random_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection) -> None:
+    """
+    This handler sends a random recipe from the database
+    """
+
+    max_recipe_id = execute_fetch_query(get_max_recipe_id(), connection)
+    if not max_recipe_id:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "There was an error fetching the recipe. Please try again later."
+        )
+        return
+    # set seed from the current time
+    random.seed(time.time())
+    random_id = random.randint(1, max_recipe_id[0]["max"])
+    recipe = execute_fetch_query(get_recipe_by_id(random_id), connection)
+    if not recipe:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "There was an error fetching the recipe. Please try again later."
+        )
+        return
+    recipe = recipe[0]
+    recipe_html = create_recipe_html(recipe)
+    context.bot.send_message(
+        update.message.from_user.id,
+        recipe_html,
+        parse_mode=ParseMode.HTML
+    )
+
+    
 
 
 def button_tap(update: Update, context: CallbackContext) -> None:
@@ -110,6 +129,7 @@ def button_tap(update: Update, context: CallbackContext) -> None:
 
 def main() -> None:
     load_dotenv()
+    connection = get_connection()
     updater = Updater(token=os.environ["BOT_TOKEN"])
 
     # Get the dispatcher to register handlers
@@ -117,9 +137,9 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     # Register commands
-    dispatcher.add_handler(CommandHandler("scream", scream))
-    dispatcher.add_handler(CommandHandler("whisper", whisper))
     dispatcher.add_handler(CommandHandler("menu", menu))
+    dispatcher.add_handler(CommandHandler("help", menu))
+    dispatcher.add_handler(CommandHandler("random_recipe", partial(send_random_recipe, connection=connection)))
 
     # Register handler for inline buttons
     dispatcher.add_handler(CallbackQueryHandler(button_tap))
