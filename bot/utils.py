@@ -3,7 +3,10 @@ import logging as logger
 from typing import Optional, Union
 import psycopg2
 import os
+from querys import *
 
+DISABLED = "DISABLED"
+ENABLED = "ENABLED"
 
 def get_connection() -> Union[psycopg2.extensions.connection, None]:
     try:
@@ -59,4 +62,12 @@ def create_recipe_html(recipe: dict) -> str:
     recipe_html += f"<i>Find it here 👉🏻 </i> {recipe['recipeurl']}\n"
     return recipe_html
 
-    
+def load_categories(connection: psycopg2.extensions.connection) -> Optional[dict]:
+    categories = {}
+    categories_result = execute_fetch_query(get_categories(), connection)
+    if len(categories_result) == 0:
+        logger.error("No categories found")
+        return None
+    for res in categories_result:
+        categories[res["category"]] = ENABLED
+    return categories

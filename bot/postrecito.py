@@ -1,88 +1,27 @@
 from functools import partial
-import logging
+import logging as logger
 import os
 from dotenv import load_dotenv
 import psycopg2
 from utils import *
 from querys import *
 import random
+import sys
 
 from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 
-logger = logging.getLogger(__name__)
+DISABLED = "DISABLED"
+ENABLED = "ENABLED"
 
-
-# Store bot screaming status
-screaming = False
-
-# Pre-assign menu text
-FIRST_MENU = "<b>Menu 1</b>\n\nA beautiful menu with a shiny inline button."
-SECOND_MENU = "<b>Menu 2</b>\n\nA better menu with even more shiny inline buttons."
-
-# Pre-assign button text
-NEXT_BUTTON = "Next"
-BACK_BUTTON = "Back"
-TUTORIAL_BUTTON = "Tutorial"
-
-# Build keyboards
-FIRST_MENU_MARKUP = InlineKeyboardMarkup([[
-    InlineKeyboardButton(NEXT_BUTTON, callback_data=NEXT_BUTTON)
-]])
-SECOND_MENU_MARKUP = InlineKeyboardMarkup([
-    [InlineKeyboardButton(BACK_BUTTON, callback_data=BACK_BUTTON)],
-    [InlineKeyboardButton(TUTORIAL_BUTTON, url="https://core.telegram.org/bots/api")]
-])
-
-
-def echo(update: Update, context: CallbackContext) -> None:
-    """
-    This function would be added to the dispatcher as a handler for messages coming from the Bot API
-    """
-
-    # Print to console
-    print(f'{update.message.from_user.first_name} wrote {update.message.text}')
-
-    if screaming and update.message.text:
-        context.bot.send_message(
-            update.message.chat_id,
-            update.message.text.upper(),
-            # To preserve the markdown, we attach entities (bold, italic...)
-            entities=update.message.entities
-        )
-    else:
-        # This is equivalent to forwarding, without the sender's name
-        update.message.copy(update.message.chat_id)
-
-
-def menu(update: Update, context: CallbackContext) -> None:
-    """
-    This handler sends a menu with the inline buttons we pre-assigned above
-    """
-
-    context.bot.send_message(
-        update.message.from_user.id,
-        FIRST_MENU,
-        parse_mode=ParseMode.HTML,
-        reply_markup=FIRST_MENU_MARKUP
-    )
-
-def send_random_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection) -> None:
+def send_random_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
     """
     This handler sends a random recipe from the database
     """
+    categories = [category for category, status in filters["CATEGORIES"].items() if status == ENABLED]
 
-    max_recipe_id = execute_fetch_query(get_max_recipe_id(), connection)
-    if not max_recipe_id:
-        context.bot.send_message(
-            update.message.from_user.id,
-            "There was an error fetching the recipe. Please try again later."
-        )
-        return
-    # set seed from the current time
-    random.seed(time.time())
-    random_id = random.randint(1, max_recipe_id[0]["max"])
-    recipe = execute_fetch_query(get_recipe_by_id(random_id), connection)
+    query = get_random_recipe(categories)
+    recipe = execute_fetch_query(query, connection)
     if not recipe:
         context.bot.send_message(
             update.message.from_user.id,
@@ -97,55 +36,81 @@ def send_random_recipe(update: Update, context: CallbackContext, connection: psy
         parse_mode=ParseMode.HTML
     )
 
-    
-
-
-def button_tap(update: Update, context: CallbackContext) -> None:
+def send_categories(update: Update, context: CallbackContext, categories: dict) -> None:
     """
-    This handler processes the inline buttons on the menu
+    This handler sends the categories of the recipes and wheter they are enabled or disabled
     """
+    message = "<b>Categories</b>\n"
 
-    data = update.callback_query.data
-    text = ''
-    markup = None
+    for category in sorted(categories.keys()):
+        if categories[category] == ENABLED:
+            message += f"🟢 {category}\n"
+        else:
+            message += f"🔴 {category}\n"
 
-    if data == NEXT_BUTTON:
-        text = SECOND_MENU
-        markup = SECOND_MENU_MARKUP
-    elif data == BACK_BUTTON:
-        text = FIRST_MENU
-        markup = FIRST_MENU_MARKUP
-
-    # Close the query to end the client-side loading animation
-    update.callback_query.answer()
-
-    # Update message content with corresponding menu section
-    update.callback_query.message.edit_text(
-        text,
-        ParseMode.HTML,
-        reply_markup=markup
+    context.bot.send_message(
+        update.message.from_user.id,
+        message,
+        parse_mode=ParseMode.HTML
     )
+
+def set_categories(update: Update, context: CallbackContext, categories: dict) -> None:
+    """
+    This handler sets the status of a list of categories
+    """
+    
+    if len(context.args) == 0 or not context.args[0].upper() in [ENABLED, DISABLED]:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "Please indicate whether you want to enable or disable the categories.\n The status must be either 'ENABLED' or 'DISABLED'"
+        )
+        return
+    status = context.args[0].upper()
+    categories_to_set = context.args[1:] if len(context.args) > 1 else categories.keys()
+
+    failed_categories = []
+    for category in categories_to_set:
+        category.replace("_", " ")
+        if category in categories:
+            categories[category] = status
+        else:
+            failed_categories.append(category)
+
+    if failed_categories:
+        context.bot.send_message(
+            update.message.from_user.id,
+            f"Failed to set the following categories: {', '.join(failed_categories)}\nPlease make sure you typed the category name correctly."
+        )
+    else:
+        context.bot.send_message(
+            update.message.from_user.id,
+            f"All categories updated successfully"
+        )
 
 
 def main() -> None:
     load_dotenv()
+    logger.basicConfig(stream=sys.stdout, level=logger.INFO)
     connection = get_connection()
     updater = Updater(token=os.environ["BOT_TOKEN"])
+
+    categories = load_categories(connection)
+    if not categories:
+        return
+    
+    filters = {"CATEGORIES": categories}
 
     # Get the dispatcher to register handlers
     # Then, we register each handler and the conditions the update must meet to trigger it
     dispatcher = updater.dispatcher
 
     # Register commands
-    dispatcher.add_handler(CommandHandler("menu", menu))
-    dispatcher.add_handler(CommandHandler("help", menu))
-    dispatcher.add_handler(CommandHandler("random_recipe", partial(send_random_recipe, connection=connection)))
-
-    # Register handler for inline buttons
-    dispatcher.add_handler(CallbackQueryHandler(button_tap))
+    dispatcher.add_handler(CommandHandler("random_recipe", partial(send_random_recipe, connection=connection, filters=filters)))
+    dispatcher.add_handler(CommandHandler("categories", partial(send_categories, categories=categories)))
+    dispatcher.add_handler(CommandHandler("set_categories", partial(set_categories, categories=categories), pass_args=True))
 
     # Echo any message that is not a command
-    dispatcher.add_handler(MessageHandler(~Filters.command, echo))
+    # dispatcher.add_handler(MessageHandler(~Filters.command, echo))
 
     # Start the Bot
     updater.start_polling()
