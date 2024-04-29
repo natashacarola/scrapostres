@@ -62,12 +62,12 @@ def create_recipe_html(recipe: dict) -> str:
     recipe_html += f"<i>Find it here 👉🏻 </i> {recipe['recipeurl']}\n"
     return recipe_html
 
-def load_categories(connection: psycopg2.extensions.connection) -> Optional[dict]:
-    categories = {}
-    categories_result = execute_fetch_query(get_categories(), connection)
-    if len(categories_result) == 0:
-        logger.error("No categories found")
+def load_filter(connection: psycopg2.extensions.connection, filter_name: str) -> Optional[dict]:
+    filter = {}
+    filter_result = execute_fetch_query(get_filter(filter_name), connection)
+    if filter_result is None or len(filter_result) == 0:
+        logger.error(f"No {filter_name} found")
         return None
-    for res in categories_result:
-        categories[res["category"]] = ENABLED
-    return categories
+    for res in filter_result:
+        filter[res[filter_name.lower()]] = ENABLED
+    return filter
