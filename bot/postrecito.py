@@ -8,6 +8,10 @@ from utils import *
 from querys import *
 import random
 import sys
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+import io
 
 from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
@@ -58,7 +62,8 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler(HEARTS, partial(send_hearts, hearts=filters[HEARTS])))
     dispatcher.add_handler(CommandHandler("set_hearts", partial(set_hearts, filter=filters[HEARTS]), pass_args=True))
     dispatcher.add_handler(CommandHandler("clean_filters", partial(clean_filters, filters=filters, connection=connection)))
-
+    dispatcher.add_handler(CommandHandler("send_chart", partial(send_hearts_by_category, connection = connection)))
+    
     # Echo any message that is not a command
     # dispatcher.add_handler(MessageHandler(~Filters.command, echo))
 
