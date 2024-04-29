@@ -17,12 +17,12 @@ def scrap_holiday(holiday_name: str, holiday_html: html.HtmlElement, connector: 
             SELECT RecipeID FROM Recipes WHERE RecipeURL = '{recipe}'
             """
         recipe_id_result = execute_fetch_query(select_query, connector)
-        
+
         if not recipe_id_result:
             logger.warn(f"Recipe {recipe} not found in the Recipes database, skipping")
             continue
         recipe_id = int(recipe_id_result[0]['recipeid'])
- 
+
         # check if the recipe is already in the holiday
         select_query = f"""
             SELECT * FROM Holidays WHERE RecipeID = '{recipe_id}'
@@ -58,7 +58,7 @@ def main():
 
     connection = get_connection()
     if not connection:
-        logger.error(f"Error while connecting to PostgreSQL: {e}")
+        logger.error(f"Error while connecting to PostgreSQL")
         return
 
     recipes_page = 'https://www.sweetestmenu.com/recipes/'
@@ -80,5 +80,5 @@ def main():
     connection.close()
 
 
-main()
-
+if __name__ == '__main__':
+   main()
