@@ -17,12 +17,12 @@ def get_connection() -> Union[psycopg2.extensions.connection, None]:
             port=os.environ["POSTGRES_PORT"],
             database=os.environ["POSTGRES_DB"],
         )
-        
+
         connection.autocommit = True
         return connection
     except psycopg2.OperationalError as e:
         return None
-    
+
 def execute_fetch_query(query: str, connection: psycopg2.extensions.connection) -> Optional[list]:
     try:
         with connection.cursor() as cursor:

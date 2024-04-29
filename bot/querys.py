@@ -10,3 +10,6 @@ def get_recipe_by_id(recipe_id: int) -> str:
 
 def get_categories() -> str:
     return "SELECT DISTINCT Category FROM Recipes"
+
+def get_hearts_by_category() -> str:
+    return "SELECT category, SUM(hearts) as total_hearts FROM recipes GROUP BY category HAVING SUM(hearts) > 0"
