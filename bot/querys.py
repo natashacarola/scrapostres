@@ -33,3 +33,6 @@ def get_categories() -> str:
 
 def get_hearts_by_category() -> str:
     return "SELECT category, SUM(hearts) as total_hearts FROM recipes GROUP BY category HAVING SUM(hearts) > 0"
+
+def get_holidays_count() -> str:
+    return "SELECT SUM(CASE WHEN summer = true THEN 1 ELSE 0 END) AS summer_count, SUM(CASE WHEN easter = true THEN 1 ELSE 0 END) AS easter_count, SUM(CASE WHEN christmas = true THEN 1 ELSE 0 END) AS christmas_count, SUM(CASE WHEN valentines = true THEN 1 ELSE 0 END) AS valentines_count FROM holidays;"
