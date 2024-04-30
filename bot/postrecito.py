@@ -14,7 +14,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import io
 
 from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, ConversationHandler
 
 from commands import *
 
@@ -26,6 +26,7 @@ DATES = "DATES"
 HEARTS = "HEARTS"
 MIN = "MIN"
 MAX = "MAX"
+GET_CHART = range(1)
 
 def main() -> None:
     load_dotenv()
@@ -38,7 +39,7 @@ def main() -> None:
         filters[filter_name] = load_filter(connection, column)
         if not filters[filter_name]:
             return
-    
+
     oldest_updated_date = execute_fetch_query(get_oldest_updated_date(), connection)[0]["min"]
     newest_updated_date = execute_fetch_query(get_newest_updated_date(), connection)[0]["max"]
     oldest_updated_date = datetime(oldest_updated_date.year, oldest_updated_date.month, oldest_updated_date.day)
@@ -62,8 +63,15 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler(HEARTS, partial(send_hearts, hearts=filters[HEARTS])))
     dispatcher.add_handler(CommandHandler("set_hearts", partial(set_hearts, filter=filters[HEARTS]), pass_args=True))
     dispatcher.add_handler(CommandHandler("clean_filters", partial(clean_filters, filters=filters, connection=connection)))
-    dispatcher.add_handler(CommandHandler("send_chart", partial(send_hearts_by_category, connection = connection)))
-    
+
+    conversation_handler = ConversationHandler(
+        entry_points=[CommandHandler("send_menu_charts",send_menu_charts )],
+        states = {
+            GET_CHART: [MessageHandler(Filters.text, get_chart)]
+        },
+        fallbacks = []
+    )
+    dispatcher.add_handler(conversation_handler)
     # Echo any message that is not a command
     # dispatcher.add_handler(MessageHandler(~Filters.command, echo))
 
