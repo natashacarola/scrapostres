@@ -24,9 +24,21 @@ CATEGORIES = "CATEGORIES"
 CUISINES = "CUISINES"
 DATES = "DATES"
 HEARTS = "HEARTS"
+TIME = "TIME"
+VALENTINES = "VALENTINES"
+CHRISTMAS = "CHRISTMAS"
+EASTER = "EASTER"
+SUMMER = "SUMMER"
+HOLIDAYS = "HOLIDAYS"
 MIN = "MIN"
 MAX = "MAX"
 GET_CHART = range(1)
+
+def wrong_command(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Wrong command, please try again")
+
+def not_a_command(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("That's not a command, I'm a bot, I only understand commands\nTry with /random_recipe 😉")
 
 def main() -> None:
     load_dotenv()
@@ -45,8 +57,10 @@ def main() -> None:
     oldest_updated_date = datetime(oldest_updated_date.year, oldest_updated_date.month, oldest_updated_date.day)
     newest_updated_date = datetime(newest_updated_date.year, newest_updated_date.month, newest_updated_date.day)
     filters[DATES] = {MIN: oldest_updated_date, MAX: newest_updated_date}
+    filters[TIME] = {MIN: 0, MAX: -1}
     filters[HEARTS] = set()
     filters[HEARTS].add(0)
+    filters[HOLIDAYS] = {VALENTINES: True, CHRISTMAS: True, EASTER: True, SUMMER: True}
 
     # Get the dispatcher to register handlers
     # Then, we register each handler and the conditions the update must meet to trigger it
@@ -63,6 +77,14 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler(HEARTS, partial(send_hearts, hearts=filters[HEARTS])))
     dispatcher.add_handler(CommandHandler("set_hearts", partial(set_hearts, filter=filters[HEARTS]), pass_args=True))
     dispatcher.add_handler(CommandHandler("clean_filters", partial(clean_filters, filters=filters, connection=connection)))
+    dispatcher.add_handler(CommandHandler(TIME, partial(send_time, time=filters[TIME])))
+    dispatcher.add_handler(CommandHandler("set_time", partial(set_time, filter=filters[TIME]), pass_args=True))
+    dispatcher.add_handler(CommandHandler(HOLIDAYS, partial(send_holidays, holidays=filters[HOLIDAYS])))
+    dispatcher.add_handler(CommandHandler("set_holidays", partial(set_holidays, filter=filters[HOLIDAYS]), pass_args=True))
+    dispatcher.add_handler(CommandHandler("random_holiday_recipe", partial(send_random_holiday_recipe, connection=connection, filters=filters)))
+
+    dispatcher.add_handler(MessageHandler(Filters.command, wrong_command))
+    dispatcher.add_handler(MessageHandler(~Filters.command, not_a_command))
 
     conversation_handler = ConversationHandler(
         entry_points=[CommandHandler("send_menu_charts",send_menu_charts )],

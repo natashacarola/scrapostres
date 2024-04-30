@@ -21,9 +21,16 @@ CATEGORIES = "CATEGORIES"
 CUISINES = "CUISINES"
 DATES = "DATES"
 HEARTS = "HEARTS"
+TIME = "TIME"
+VALENTINES = "VALENTINES"
+CHRISTMAS = "CHRISTMAS"
+EASTER = "EASTER"
+SUMMER = "SUMMER"
+HOLIDAYS = "HOLIDAYS"
 MIN = "MIN"
 MAX = "MAX"
 GET_CHART= range(1)
+
 def send_random_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
     """
     This handler sends a random recipe from the database
@@ -32,10 +39,12 @@ def send_random_recipe(update: Update, context: CallbackContext, connection: psy
     cuisines = [cuisine for cuisine, status in filters[CUISINES].items() if status == ENABLED]
     min_date_updated = filters[DATES][MIN]
     max_date_updated = filters[DATES][MAX]
+    min_time = filters[TIME][MIN]
+    max_time = filters[TIME][MAX]
     hearts = filters[HEARTS].pop()
     filters[HEARTS].add(hearts)
 
-    query = get_random_recipe(categories, cuisines, min_date_updated, max_date_updated, hearts)
+    query = get_random_recipe(categories, cuisines, min_date_updated, max_date_updated, hearts, min_time, max_time)
     recipe = execute_fetch_query(query, connection)
     if not recipe:
         context.bot.send_message(
@@ -50,6 +59,39 @@ def send_random_recipe(update: Update, context: CallbackContext, connection: psy
         recipe_html,
         parse_mode=ParseMode.HTML
     )
+
+def send_random_holiday_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
+    """
+    This handler sends a random recipe from the database that matches the holidays
+    """
+    categories = [category for category, status in filters[CATEGORIES].items() if status == ENABLED]
+    cuisines = [cuisine for cuisine, status in filters[CUISINES].items() if status == ENABLED]
+    min_date_updated = filters[DATES][MIN]
+    max_date_updated = filters[DATES][MAX]
+    min_time = filters[TIME][MIN]
+    max_time = filters[TIME][MAX]
+    hearts = filters[HEARTS].pop()
+    filters[HEARTS].add(hearts)
+    valentines = filters[HOLIDAYS][VALENTINES]
+    christmas = filters[HOLIDAYS][CHRISTMAS]
+    easter = filters[HOLIDAYS][EASTER]
+    summer = filters[HOLIDAYS][SUMMER]
+
+    query = get_random_holiday_recipe(categories, cuisines, min_date_updated, max_date_updated, hearts, min_time, max_time, valentines, christmas, easter, summer)
+    recipe = execute_fetch_query(query, connection)
+    if not recipe:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "I couldn't find any recipe with the given filters. Please try again with different filters."
+        )
+        return
+    recipe = recipe[0]
+    recipe_html = create_recipe_html(recipe)
+    context.bot.send_message(
+        update.message.from_user.id,
+        recipe_html,
+        parse_mode=ParseMode.HTML
+    ) 
 
 def send_filter(update: Update, context: CallbackContext, filter: dict, name: str) -> None:
     """
@@ -199,6 +241,98 @@ def set_hearts(update: Update, context: CallbackContext, filter: set) -> None:
         "Hearts updated successfully"
     )
 
+def send_time(update: Update, context: CallbackContext, time: dict) -> None:
+    """
+    This handler sends the minimum and maximum time the user has
+    """
+    max_t = time[MAX] if time[MAX] != -1 else "∞"
+    message = "<b>Time Allowed (minutes)</b>\n"
+    message += f"Minimum: {time[MIN]}\n"
+    message += f"Maximum: {max_t}\n"
+
+    context.bot.send_message(
+        update.message.from_user.id,
+        message,
+        parse_mode=ParseMode.HTML
+    )
+
+def set_time(update: Update, context: CallbackContext, filter: dict) -> None:
+    """
+    This handler sets the minimum and maximum time the user wants
+    """
+    if len(context.args) != 2:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "Please provide only two numbers"
+        )
+        return
+
+    try:
+        min_time = int(context.args[0])
+        max_time = int(context.args[1])
+    except ValueError:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "Please provide valid numbers"
+        )
+        return
+
+    filter[MIN] = min_time
+    filter[MAX] = max_time
+    context.bot.send_message(
+        update.message.from_user.id,
+        "Time updated successfully"
+    )
+
+def send_holidays(update: Update, context: CallbackContext, filter: dict) -> None:
+    """
+    This handler sends the holidays the user has
+    """
+    holidays = ""
+    if filter[VALENTINES]:
+        holidays += "Valentine's Day\n"
+    if filter[CHRISTMAS]:
+        holidays += "Christmas\n"
+    if filter[EASTER]:
+        holidays += "Easter\n"
+    if filter[SUMMER]:
+        holidays += "Summer\n"
+    
+    if len(holidays) == 0:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "No holidays allowed"
+        )
+        return
+
+    context.bot.send_message(
+        update.message.from_user.id,
+        f"The holidays allowed are:\n{holidays}"
+    )
+
+def set_holidays(update: Update, context: CallbackContext, filter: dict) -> None:
+    """
+    This handler sets the holidays the user wants
+    """
+    allowed = [h.upper() for h in context.args]
+    confirmed = []
+    for h in [VALENTINES, CHRISTMAS, EASTER, SUMMER]:
+        if h in allowed:
+            filter[h] = True
+            confirmed.append(h)
+        else:
+            filter[h] = False
+    if len(confirmed) == 0:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "All holidays disabled"
+        )
+    else:
+        context.bot.send_message(
+            update.message.from_user.id,
+            f"The following holidays are enabled: {', '.join(confirmed)}"
+        )
+
 def clean_filters(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
     """
     This handler cleans the filters
@@ -212,9 +346,16 @@ def clean_filters(update: Update, context: CallbackContext, connection: psycopg2
     newest_updated_date = execute_fetch_query(get_newest_updated_date(), connection)[0]["max"]
     oldest_updated_date = datetime(oldest_updated_date.year, oldest_updated_date.month, oldest_updated_date.day)
     newest_updated_date = datetime(newest_updated_date.year, newest_updated_date.month, newest_updated_date.day)
-    filters[DATES] = {MIN: oldest_updated_date, MAX: newest_updated_date}
-    filters[HEARTS] = set()
+    filters[DATES][MIN] = oldest_updated_date
+    filters[DATES][MAX] = newest_updated_date
+    filters[TIME][MIN] = 0
+    filters[TIME][MAX] = -1
+    filters[HEARTS].clear()
     filters[HEARTS].add(0)
+    filters[HOLIDAYS][VALENTINES] = True
+    filters[HOLIDAYS][CHRISTMAS] = True
+    filters[HOLIDAYS][EASTER] = True
+    filters[HOLIDAYS][SUMMER] = True
     context.bot.send_message(
         update.message.from_user.id,
         "Filters cleaned successfully"
