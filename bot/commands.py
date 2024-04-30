@@ -8,9 +8,12 @@ from utils import *
 from querys import *
 import random
 import sys
+import matplotlib.pyplot as plt
+import pandas as pd
+import io
 
-from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, ConversationHandler
 
 DISABLED = "DISABLED"
 ENABLED = "ENABLED"
@@ -20,7 +23,7 @@ DATES = "DATES"
 HEARTS = "HEARTS"
 MIN = "MIN"
 MAX = "MAX"
-
+GET_CHART= range(1)
 def send_random_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
     """
     This handler sends a random recipe from the database
@@ -76,7 +79,7 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
     """
     This handler sets the status of a list of some filter of the recipes
     """
-    
+
     if len(context.args) == 0 or not context.args[0].upper() in [ENABLED, DISABLED]:
         context.bot.send_message(
             update.message.from_user.id,
@@ -130,7 +133,7 @@ def set_dates(update: Update, context: CallbackContext, connection: psycopg2.ext
             "Please provide only two dates: the oldest and the newest. You can also not provide any dates to reset them to the default values."
         )
         return
-    
+
     if len(context.args) == 0:
         oldest_updated_date = execute_fetch_query(get_oldest_updated_date(), connection)[0]["min"]
         newest_updated_date = execute_fetch_query(get_newest_updated_date(), connection)[0]["max"]
@@ -140,7 +143,7 @@ def set_dates(update: Update, context: CallbackContext, connection: psycopg2.ext
             "Dates reset to the default values"
         )
         return
-    
+
     try:
         oldest_updated_date = datetime(*[int(i) for i in context.args[0].split("-")])
         newest_updated_date = datetime(*[int(i) for i in context.args[1].split("-")])
@@ -150,7 +153,7 @@ def set_dates(update: Update, context: CallbackContext, connection: psycopg2.ext
             "Please provide the dates in the format 'YYYY-MM-DD'"
         )
         return
-    
+
     filters[DATES][MIN] = oldest_updated_date
     filters[DATES][MAX] = newest_updated_date
     context.bot.send_message(
@@ -179,7 +182,7 @@ def set_hearts(update: Update, context: CallbackContext, filter: set) -> None:
             "Please provide only one number"
         )
         return
-    
+
     try:
         hearts = int(context.args[0])
     except ValueError:
@@ -188,7 +191,7 @@ def set_hearts(update: Update, context: CallbackContext, filter: set) -> None:
             "Please provide a valid number"
         )
         return
-    
+
     filter.pop()
     filter.add(hearts)
     context.bot.send_message(
@@ -204,7 +207,7 @@ def clean_filters(update: Update, context: CallbackContext, connection: psycopg2
         filters[filter_name] = load_filter(connection, column)
         if not filters[filter_name]:
             return
-    
+
     oldest_updated_date = execute_fetch_query(get_oldest_updated_date(), connection)[0]["min"]
     newest_updated_date = execute_fetch_query(get_newest_updated_date(), connection)[0]["max"]
     oldest_updated_date = datetime(oldest_updated_date.year, oldest_updated_date.month, oldest_updated_date.day)
@@ -245,6 +248,80 @@ def send_hearts_by_category(update: Update, context: CallbackContext, connection
             context.bot.send_message(
             update.message.from_user.id,
             "This is the top 5 most liked! 😄"
+            )
+            update.message.reply_photo(buffer.read())
+
+    except Exception as e:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "An error occurred generating the chart. Please try again later."
+        )
+
+def send_menu_charts(update: Update, context: CallbackContext):
+    reply_keyboard = [["1","2","3"]]
+    context.bot.send_message(
+    update.message.from_user.id,
+    "🍰 Hey there! Are you curious about which recipes requires the least time and have received the most 'hearts'? Or perhaps you want to know which recipes are the user favorites? Here are some options you can explore through visual charts:\n\n"
+    "*📊 Option 1:* Press or send *'1'* to discover recipes with the shortest cooking time and highest ratings!\n"
+    "*📊 Option 2:* Press or send *'2'* ❤️ to explore the user-favorite recipes!\n"
+    "*📊 Option 3:* Press or send *'3'* to delve into some fascinating charts and graphs!\n"
+    "*📊Option 4:* Send '0' to CANCEL\n\n"
+    "_Get ready to embark on a delightful journey through our dessert wonderland! 🍨🍩 Let's uncover some sweet surprises together! 😋✨_",
+    parse_mode=ParseMode.MARKDOWN ,
+    reply_markup = ReplyKeyboardMarkup(
+        reply_keyboard, one_time_keyboard = True, input_field_placeholder ="Here"
+        )
+    )
+    return GET_CHART
+
+def get_chart(update: Update, context: CallbackContext):
+    context.user_data["respuesta"] = update.message.text
+    connection = get_connection()
+
+    if context.user_data["respuesta"] == '1':
+        send_hearts_by_category(update, context, connection)
+    elif context.user_data["respuesta"] == '2':
+        send_count_by_holiday(update, context, connection)
+    elif context.user_data["respuesta"] == '3':
+        pass
+    else:
+        update.message.reply_text("Oops! I didn't quite catch that. Please select an option from the menu.")
+
+    update.message.reply_text(
+        "*Hey there, foodie friend!* \n\n"
+        "Just a quick heads-up that you can use the */set_filter* command to get a random ☘️ recipe from our massive database!  It's like having a culinary genie in your pocket! ✨\n\n"
+        "And if you're craving more chart goodness, just send */get_menu_charts* again and I'll serve you up those options in no time! \n Happy culinary adventures! 🤖",
+        parse_mode=ParseMode.MARKDOWN
+        )
+    return ConversationHandler.END
+
+def send_count_by_holiday(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection):
+    """
+    This handler send a predesigned graphic
+    """
+    try:
+        count_by_holiday_result = execute_fetch_query(get_holidays_count(), connection)
+
+        if count_by_holiday_result is None:
+            update.message.reply_text("Something went wrong... Try again later.")
+            return
+
+        df =pd.DataFrame(count_by_holiday_result, columns=['summer_count', 'easter_count', 'christmas_count', "valentines_count"])
+        counts = df.iloc[0].tolist()
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        plt.subplots_adjust(left=0.15, right=0.9, bottom=0.2, top=0.85)
+        ax.bar(df.columns, counts, color = "#FF339F")
+        ax.set_xlabel("HOLIDAYS")
+        ax.set_ylabel("TOTAL RECIPES")
+        ax.set_title("RECIPES BY HOLIDAYS")
+
+        with io.BytesIO() as buffer:
+            fig.savefig(buffer, format="png")
+            buffer.seek(0)
+            context.bot.send_message(
+            update.message.from_user.id,
+            "🪄 Here's the chart you've been waiting for! 🪄"
             )
             update.message.reply_photo(buffer.read())
 
