@@ -1,19 +1,11 @@
 from datetime import datetime
-from functools import partial
-import logging as logger
-import os
 from dotenv import load_dotenv
 import psycopg2
 from utils import *
 from querys import *
-import random
-import sys
-import matplotlib.pyplot as plt
-import pandas as pd
-import io
 
-from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, ConversationHandler
+from telegram import Update, ParseMode, ReplyKeyboardMarkup
+from telegram.ext import  CallbackContext, ConversationHandler
 
 DISABLED = "DISABLED"
 ENABLED = "ENABLED"
@@ -91,7 +83,7 @@ def send_random_holiday_recipe(update: Update, context: CallbackContext, connect
         update.message.from_user.id,
         recipe_html,
         parse_mode=ParseMode.HTML
-    ) 
+    )
 
 def send_filter(update: Update, context: CallbackContext, filter: dict, name: str) -> None:
     """
@@ -297,7 +289,7 @@ def send_holidays(update: Update, context: CallbackContext, filter: dict) -> Non
         holidays += "Easter\n"
     if filter[SUMMER]:
         holidays += "Summer\n"
-    
+
     if len(holidays) == 0:
         context.bot.send_message(
             update.message.from_user.id,
@@ -361,52 +353,16 @@ def clean_filters(update: Update, context: CallbackContext, connection: psycopg2
         "Filters cleaned successfully"
     )
 
-def send_hearts_by_category(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection):
-    """
-    This handler send a predesigned graphic
-    """
-    try:
-        hearts_by_category_result = execute_fetch_query(get_hearts_by_category(), connection)
-
-        if hearts_by_category_result is None:
-            update.message.reply_text("Something went wrong... Try again later.")
-            return
-
-        df =pd.DataFrame(hearts_by_category_result, columns = ["category","total_hearts"])
-        df_sorted =df.sort_values(by = "total_hearts", ascending=False)
-        df_sorted = df_sorted.head()
-
-        fig, ax =plt.subplots(figsize=(8, 6))
-        plt.subplots_adjust(left=0.15, right=0.9, bottom=0.2, top=0.85)
-        ax.barh(df_sorted["category"], df_sorted["total_hearts"], color = "#FF339F")
-        ax.set_xlabel("TOTAL HEARTS")
-        ax.set_ylabel("CATEGORY")
-        ax.set_title("RECIPES CATEGORIES WITH MORE HEARTS")
-
-        with io.BytesIO() as buffer:
-            fig.savefig(buffer, format="png")
-            buffer.seek(0)
-            context.bot.send_message(
-            update.message.from_user.id,
-            "This is the top 5 most liked! 😄"
-            )
-            update.message.reply_photo(buffer.read())
-
-    except Exception as e:
-        context.bot.send_message(
-            update.message.from_user.id,
-            "An error occurred generating the chart. Please try again later."
-        )
-
 def send_menu_charts(update: Update, context: CallbackContext):
-    reply_keyboard = [["1","2","3"]]
+    reply_keyboard = [["1","2"],["3","4"],["5"]]
     context.bot.send_message(
     update.message.from_user.id,
-    "🍰 Hey there! Are you curious about which recipes requires the least time and have received the most 'hearts'? Or perhaps you want to know which recipes are the user favorites? Here are some options you can explore through visual charts:\n\n"
-    "*📊 Option 1:* Press or send *'1'* to discover recipes with the shortest cooking time and highest ratings!\n"
-    "*📊 Option 2:* Press or send *'2'* ❤️ to explore the user-favorite recipes!\n"
-    "*📊 Option 3:* Press or send *'3'* to delve into some fascinating charts and graphs!\n"
-    "*📊Option 4:* Send '0' to CANCEL\n\n"
+    "🍰 Hey there! Dive into our visual charts and unlock delicious secrets with a tap! ✨\n\n"
+    "*📊 Option 1:* Press or send *'1'* to see which categories have the most hearts! They must be the crowd-pleasers!\n"
+    "*📊 Option 2:* Press or send *'2'* ❤️ to discover how many special occasion recipes we have! We're talking party time!\n"
+    "*📊 Option 3:* Press or send *'3'* to see how many recipes we've collected from Sweetest Menu over the years! We bet it's a treasure trove!\n"
+    "*📊 Option 4:* Press or send '4' to see how many recipes we've collected from RecipeTin Eats over the years! Let's see what culinary gems they hold!\n"
+    "*📊 Option 5:* Press or send '5' to discover the TOP 5 longest cooking times by category (only for the brave!). Are you ready to face the heat?\n\n"
     "_Get ready to embark on a delightful journey through our dessert wonderland! 🍨🍩 Let's uncover some sweet surprises together! 😋✨_",
     parse_mode=ParseMode.MARKDOWN ,
     reply_markup = ReplyKeyboardMarkup(
@@ -424,50 +380,35 @@ def get_chart(update: Update, context: CallbackContext):
     elif context.user_data["respuesta"] == '2':
         send_count_by_holiday(update, context, connection)
     elif context.user_data["respuesta"] == '3':
-        pass
+        send_recipes_by_posteddate(update, context, connection, "sweetestmenu")
+    elif context.user_data["respuesta"] == '4':
+        send_recipes_by_posteddate(update, context, connection, "recipetineats")
+    elif context.user_data["respuesta"] == '5':
+        send_max_time_by_category(update,context,connection)
     else:
         update.message.reply_text("Oops! I didn't quite catch that. Please select an option from the menu.")
 
     update.message.reply_text(
         "*Hey there, foodie friend!* \n\n"
-        "Just a quick heads-up that you can use the */set_filter* command to get a random ☘️ recipe from our massive database!  It's like having a culinary genie in your pocket! ✨\n\n"
-        "And if you're craving more chart goodness, just send */get_menu_charts* again and I'll serve you up those options in no time! \n Happy culinary adventures! 🤖",
+        "Just a quick heads-up that you can use the */random_recipe* command to get a random ☘️ recipe from our massive database!  It's like having a culinary genie in your pocket! ✨\n\n"
+        "And if you're craving more chart goodness, just send */send_menu_charts* again and I'll serve you up those options in no time! \n Happy culinary adventures! 🤖",
         parse_mode=ParseMode.MARKDOWN
         )
     return ConversationHandler.END
 
-def send_count_by_holiday(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection):
-    """
-    This handler send a predesigned graphic
-    """
-    try:
-        count_by_holiday_result = execute_fetch_query(get_holidays_count(), connection)
-
-        if count_by_holiday_result is None:
-            update.message.reply_text("Something went wrong... Try again later.")
-            return
-
-        df =pd.DataFrame(count_by_holiday_result, columns=['summer_count', 'easter_count', 'christmas_count', "valentines_count"])
-        counts = df.iloc[0].tolist()
-
-        fig, ax = plt.subplots(figsize=(10, 6))
-        plt.subplots_adjust(left=0.15, right=0.9, bottom=0.2, top=0.85)
-        ax.bar(df.columns, counts, color = "#FF339F")
-        ax.set_xlabel("HOLIDAYS")
-        ax.set_ylabel("TOTAL RECIPES")
-        ax.set_title("RECIPES BY HOLIDAYS")
-
-        with io.BytesIO() as buffer:
-            fig.savefig(buffer, format="png")
-            buffer.seek(0)
-            context.bot.send_message(
-            update.message.from_user.id,
-            "🪄 Here's the chart you've been waiting for! 🪄"
-            )
-            update.message.reply_photo(buffer.read())
-
-    except Exception as e:
-        context.bot.send_message(
-            update.message.from_user.id,
-            "An error occurred generating the chart. Please try again later."
-        )
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text("Welcome! I'm Postrecito, your friendly guide to the world of all things sweet and delectable. \n\n"
+                                "I'm here to help you discover the perfect recipe to satisfy your every craving, from quick and easy treats to elaborate showstoppers. ✨ \n\n"
+                                "🚀 Here are a few quick commands to get you started 🚀\n\n"
+                                "/random_recipe - Let fate decide your next culinary adventure with a random recipe suggestion! \n"
+                                "/set_categories - Narrow down your options by selecting your preferred dessert category.\n"
+                                "/set_cuisines - Explore the flavors of the world by choosing your desired cuisine.\n"
+                                "/set_dates - Indulge in seasonal delights by filtering recipes based on specific dates\n"
+                                "/set_hearts - Satisfy your cravings for crowd-pleasers by setting a minimum hearts threshold.\n"
+                                "/set_time - Choose the perfect recipe for your schedule by setting a maximum cooking time.\n"
+                                "/set_holidays - Celebrate special occasions with recipes tailored to your favorite holidays.\n"
+                                "/clean_filters - \n"
+                                "/random_holiday_recipe - Let Postrecito surprise you with a delectable recipe from your chosen holiday.\n"
+                                "/send_menu_charts - Delve into a world of charts and graphs showcasing our vast recipe collection.\n\n"
+                                "Remember, I'm always here to help you find the perfect recipe for your sweet tooth. Happy baking and indulging!_✨"
+                            )
