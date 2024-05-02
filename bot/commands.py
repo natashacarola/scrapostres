@@ -410,6 +410,6 @@ def start(update: Update, context: CallbackContext):
                                 "/clean_filters - Reset the filters. \n"
                                 "/random_holiday_recipe - Let Postrecito surprise you with a delectable recipe from your chosen holiday.\n"
                                 "/send_menu_charts - Delve into a world of charts and graphs showcasing our vast recipe collection.\n\n"
-                                "Remember, I'm always here to help you find the perfect recipe for your sweet tooth. Happy baking and indulging!_✨"
+                                "Remember, I'm always here to help you find the perfect recipe for your sweet tooth. _Happy baking and indulging!_✨"
                             )
 
