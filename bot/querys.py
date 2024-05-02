@@ -19,6 +19,22 @@ def get_random_recipe(categories: list, cuisines: list, min_date_updated: dateti
     query += " ORDER BY RANDOM() LIMIT 1"
     return query
 
+def get_top_recipe(categories: list, cuisines: list, min_date_updated: datetime, max_date_updated: datetime, hearts: int, min_time: int, max_time: int, order_by: str) -> str:
+    categories = ", ".join([f"'{category}'" for category in categories])
+    cuisines = ", ".join([f"'{cuisine}'" for cuisine in cuisines])
+    query = f"SELECT * FROM Recipes \
+        WHERE Category IN ({categories}) \
+        AND Cuisine IN ({cuisines}) \
+        AND UpdatedDate >= '{min_date_updated}' \
+        AND UpdatedDate <= '{max_date_updated}' \
+        AND TotalTime >= {min_time}"
+    if hearts > 0:
+        query += f" AND Hearts >= {hearts}"
+    if max_time > 0:
+        query += f" AND TotalTime <= {max_time}"
+    query += f" ORDER BY {order_by} DESC LIMIT 1"
+    return query
+
 def get_random_holiday_recipe(categories: list, cuisines: list, min_date_updated: datetime, max_date_updated: datetime, hearts: int, min_time: int, max_time: int, valentines: bool, christmas: bool, easter: bool, summer: bool) -> str:
     categories = ", ".join([f"'{category}'" for category in categories])
     cuisines = ", ".join([f"'{cuisine}'" for cuisine in cuisines])
@@ -39,6 +55,28 @@ def get_random_holiday_recipe(categories: list, cuisines: list, min_date_updated
     if max_time > 0:
         query += f" AND TotalTime <= {max_time}"
     query += " ORDER BY RANDOM() LIMIT 1"
+    return query
+
+def get_top_holiday_recipe(categories: list, cuisines: list, min_date_updated: datetime, max_date_updated: datetime, hearts: int, min_time: int, max_time: int, valentines: bool, christmas: bool, easter: bool, summer: bool, order_by: str) -> str:
+    categories = ", ".join([f"'{category}'" for category in categories])
+    cuisines = ", ".join([f"'{cuisine}'" for cuisine in cuisines])
+    query = f"SELECT * FROM Recipes \
+        WHERE RecipeID IN ( \
+            SELECT RecipeID FROM Holidays \
+            WHERE Valentines = {valentines} \
+            AND Christmas = {christmas} \
+            AND Easter = {easter} \
+            AND Summer = {summer} \
+        ) \
+        AND Category IN ({categories}) \
+        AND Cuisine IN ({cuisines}) \
+        AND UpdatedDate >= '{min_date_updated}' \
+        AND UpdatedDate <= '{max_date_updated}' \
+        AND TotalTime >= {min_time} \
+        AND Hearts >= {hearts}"
+    if max_time > 0:
+        query += f" AND TotalTime <= {max_time}"
+    query += f" ORDER BY {order_by} DESC LIMIT 1"
     return query
 
 def get_recipe_by_id(recipe_id: int) -> str:
