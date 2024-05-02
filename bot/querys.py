@@ -32,7 +32,7 @@ def get_top_recipe(categories: list, cuisines: list, min_date_updated: datetime,
         query += f" AND Hearts >= {hearts}"
     if max_time > 0:
         query += f" AND TotalTime <= {max_time}"
-    query += f" ORDER BY {order_by} DESC LIMIT 1"
+    query += f" ORDER BY {order_by} LIMIT 1"
     return query
 
 def get_random_holiday_recipe(categories: list, cuisines: list, min_date_updated: datetime, max_date_updated: datetime, hearts: int, min_time: int, max_time: int, valentines: bool, christmas: bool, easter: bool, summer: bool) -> str:
@@ -76,7 +76,7 @@ def get_top_holiday_recipe(categories: list, cuisines: list, min_date_updated: d
         AND Hearts >= {hearts}"
     if max_time > 0:
         query += f" AND TotalTime <= {max_time}"
-    query += f" ORDER BY {order_by} DESC LIMIT 1"
+    query += f" ORDER BY {order_by} LIMIT 1"
     return query
 
 def get_recipe_by_id(recipe_id: int) -> str:

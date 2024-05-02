@@ -63,10 +63,23 @@ def send_top_recipe(update: Update, context: CallbackContext, connection: psycop
     if not context.args or context.args[0].upper() not in sort_columns.keys():
         context.bot.send_message(
             update.message.from_user.id,
-            "Please provide a valid sorting parameter: 'dates', 'hearts' or 'time'"
+            "Please provide a valid sorting parameter: 'dates', 'hearts' or 'time'. You can also add an extra parameter 'min' or 'max' if you want the top max or top min.\n Example: /top_recipe dates min"
         )
         return
     order_by = sort_columns[context.args[0].upper()]
+    if len(context.args) > 1:
+        if context.args[1].upper() == "MIN":
+            order_by += " ASC"
+        elif context.args[1].upper() == "MAX":
+            order_by += " DESC"
+        else:
+            context.bot.send_message(
+                update.message.from_user.id,
+                "Please provide a valid extra parameter: 'min' or 'max'"
+            )
+            return
+    else:
+        order_by += " DESC"
 
     categories = [category for category, status in filters[CATEGORIES].items() if status == ENABLED]
     cuisines = [cuisine for cuisine, status in filters[CUISINES].items() if status == ENABLED]
@@ -134,10 +147,23 @@ def send_top_holiday_recipe(update: Update, context: CallbackContext, connection
     if not context.args or context.args[0].upper() not in sort_columns.keys():
         context.bot.send_message(
             update.message.from_user.id,
-            "Please provide a valid sorting parameter: 'dates', 'hearts' or 'time'"
+            "Please provide a valid sorting parameter: 'dates', 'hearts' or 'time'. You can also add an extra parameter 'min' or 'max' if you want the top max or top min.\n Example: /top_holiday_recipe dates min"
         )
         return
     order_by = sort_columns[context.args[0].upper()]
+    if len(context.args) > 1:
+        if context.args[1].upper() == "MIN":
+            order_by += " ASC"
+        elif context.args[1].upper() == "MAX":
+            order_by += " DESC"
+        else:
+            context.bot.send_message(
+                update.message.from_user.id,
+                "Please provide a valid extra parameter: 'min' or 'max'"
+            )
+            return
+    else:
+        order_by += " DESC"
 
     categories = [category for category, status in filters[CATEGORIES].items() if status == ENABLED]
     cuisines = [cuisine for cuisine, status in filters[CUISINES].items() if status == ENABLED]
