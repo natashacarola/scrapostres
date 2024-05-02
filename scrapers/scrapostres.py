@@ -106,7 +106,7 @@ def main():
 
     connection = get_connection()
     if not connection:
-        logger.error(f"Error while connecting to PostgreSQL: {e}")
+        logger.error(f"Error while connecting to PostgreSQL")
         return
 
     home_page = 'https://www.sweetestmenu.com/'
@@ -131,6 +131,5 @@ def main():
 
     connection.close()
 
-
-main()
-
+if __name__ == '__main__':
+   main()
