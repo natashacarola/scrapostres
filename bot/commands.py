@@ -407,8 +407,9 @@ def start(update: Update, context: CallbackContext):
                                 "/set_hearts - Satisfy your cravings for crowd-pleasers by setting a minimum hearts threshold.\n"
                                 "/set_time - Choose the perfect recipe for your schedule by setting a maximum cooking time.\n"
                                 "/set_holidays - Celebrate special occasions with recipes tailored to your favorite holidays.\n"
-                                "/clean_filters - \n"
+                                "/clean_filters - Reset the filters. \n"
                                 "/random_holiday_recipe - Let Postrecito surprise you with a delectable recipe from your chosen holiday.\n"
                                 "/send_menu_charts - Delve into a world of charts and graphs showcasing our vast recipe collection.\n\n"
                                 "Remember, I'm always here to help you find the perfect recipe for your sweet tooth. Happy baking and indulging!_✨"
                             )
+
