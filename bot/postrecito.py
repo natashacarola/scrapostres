@@ -3,18 +3,13 @@ from functools import partial
 import logging as logger
 import os
 from dotenv import load_dotenv
-import psycopg2
 from utils import *
 from querys import *
-import random
 import sys
-import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib.backends.backend_agg import FigureCanvasAgg
-import io
 
-from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, ConversationHandler
+
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler
 
 from commands import *
 
@@ -82,10 +77,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler(HOLIDAYS, partial(send_holidays, holidays=filters[HOLIDAYS])))
     dispatcher.add_handler(CommandHandler("set_holidays", partial(set_holidays, filter=filters[HOLIDAYS]), pass_args=True))
     dispatcher.add_handler(CommandHandler("random_holiday_recipe", partial(send_random_holiday_recipe, connection=connection, filters=filters)))
-
-    dispatcher.add_handler(MessageHandler(Filters.command, wrong_command))
-    dispatcher.add_handler(MessageHandler(~Filters.command, not_a_command))
-
+    dispatcher.add_handler(CommandHandler("start", start))
     conversation_handler = ConversationHandler(
         entry_points=[CommandHandler("send_menu_charts",send_menu_charts )],
         states = {
@@ -94,6 +86,8 @@ def main() -> None:
         fallbacks = []
     )
     dispatcher.add_handler(conversation_handler)
+    dispatcher.add_handler(MessageHandler(Filters.command, wrong_command))
+    dispatcher.add_handler(MessageHandler(~Filters.command, not_a_command))
     # Echo any message that is not a command
     # dispatcher.add_handler(MessageHandler(~Filters.command, echo))
 
