@@ -117,7 +117,7 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
     if len(context.args) == 0 or not context.args[0].upper() in [ENABLED, DISABLED]:
         context.bot.send_message(
             update.message.from_user.id,
-            "Please indicate whether you want to enable or disable.\n The status must be either 'ENABLED' or 'DISABLED'"
+            f"Please indicate whether you want to enable or disable.\n The status must be either 'ENABLED' or 'DISABLED'.\n The command must be like this: \n/set_{name.lower()} ENABLED/DISABLED selection1 selection2 ...\n /set_{name.lower()} ENABLED/DISABLED (to modify all {name.lower()})"
         )
         return
     status = context.args[0].upper()
@@ -125,22 +125,24 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
     list_to_set = [f for f in list_to_set if f is not None]
 
     failed_ones = []
+    success_ones = []
     for f in list_to_set:
         f.replace("_", " ")
         if f in filter:
             filter[f] = status
+            success_ones.append(f)
         else:
             failed_ones.append(f)
 
     if failed_ones:
         context.bot.send_message(
             update.message.from_user.id,
-            f"Failed to set the following: {', '.join(failed_ones)}\nPlease make sure you typed each name correctly."
+            f"Failed to set the following: {', '.join(failed_ones)}\nPlease make sure you typed each name correctly (the names are case sensitive)."
         )
     else:
         context.bot.send_message(
             update.message.from_user.id,
-            f"All {name.lower()} updated successfully"
+            f"{name.title()} updated successfully"
         )
 
 def send_dates(update: Update, context: CallbackContext, filter: dict) -> None:
@@ -213,7 +215,7 @@ def set_hearts(update: Update, context: CallbackContext, filter: set) -> None:
     if len(context.args) != 1:
         context.bot.send_message(
             update.message.from_user.id,
-            "Please provide only one number"
+            "Please provide one number"
         )
         return
 
@@ -255,7 +257,7 @@ def set_time(update: Update, context: CallbackContext, filter: dict) -> None:
     if len(context.args) != 2:
         context.bot.send_message(
             update.message.from_user.id,
-            "Please provide only two numbers"
+            "Please provide only two numbers (in minutes)"
         )
         return
 
@@ -282,18 +284,18 @@ def send_holidays(update: Update, context: CallbackContext, filter: dict) -> Non
     """
     holidays = ""
     if filter[VALENTINES]:
-        holidays += "Valentine's Day\n"
+        holidays += "💌 Valentine's Day\n"
     if filter[CHRISTMAS]:
-        holidays += "Christmas\n"
+        holidays += "🎄 Christmas\n"
     if filter[EASTER]:
-        holidays += "Easter\n"
+        holidays += "🐰 Easter\n"
     if filter[SUMMER]:
-        holidays += "Summer\n"
+        holidays += "🏖️ Summer\n"
 
     if len(holidays) == 0:
         context.bot.send_message(
             update.message.from_user.id,
-            "No holidays allowed"
+            "All holidays disabled"
         )
         return
 

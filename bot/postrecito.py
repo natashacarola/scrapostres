@@ -74,7 +74,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("clean_filters", partial(clean_filters, filters=filters, connection=connection)))
     dispatcher.add_handler(CommandHandler(TIME, partial(send_time, time=filters[TIME])))
     dispatcher.add_handler(CommandHandler("set_time", partial(set_time, filter=filters[TIME]), pass_args=True))
-    dispatcher.add_handler(CommandHandler(HOLIDAYS, partial(send_holidays, holidays=filters[HOLIDAYS])))
+    dispatcher.add_handler(CommandHandler(HOLIDAYS, partial(send_holidays, filter=filters[HOLIDAYS])))
     dispatcher.add_handler(CommandHandler("set_holidays", partial(set_holidays, filter=filters[HOLIDAYS]), pass_args=True))
     dispatcher.add_handler(CommandHandler("random_holiday_recipe", partial(send_random_holiday_recipe, connection=connection, filters=filters)))
     dispatcher.add_handler(CommandHandler("start", start))
