@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from dotenv import load_dotenv
 import psycopg2
 from utils import *
@@ -226,12 +227,17 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
     if len(context.args) == 0 or not context.args[0].upper() in [ENABLED, DISABLED]:
         context.bot.send_message(
             update.message.from_user.id,
-            f"Please indicate whether you want to enable or disable.\n The status must be either 'ENABLED' or 'DISABLED'.\n The command must be like this: \n/set_{name.lower()} ENABLED/DISABLED selection1 selection2 ...\n /set_{name.lower()} ENABLED/DISABLED (to modify all {name.lower()})"
+            f"Please indicate whether you want to enable or disable.\n The status must be either 'ENABLED' or 'DISABLED'.\n The command must be like this: \n/set_{name.lower()} ENABLED/DISABLED selection1 selection2 ...\n/set_{name.lower()} ENABLED/DISABLED (to modify all {name.lower()})\nThe case is unsensitive and you don't need to put the complete name of each selection, just a part of it. If the name has more than one word, you can use an underscore instead of a space."
         )
         return
     status = context.args[0].upper()
     list_to_set = context.args[1:] if len(context.args) > 1 else filter.keys()
     list_to_set = [f for f in list_to_set if f is not None]
+
+    context.bot.send_message(
+        update.message.from_user.id,
+        "Updating..."
+    )
 
     failed_ones = []
     success_ones = []
@@ -241,14 +247,24 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
             filter[f] = status
             success_ones.append(f)
         else:
-            failed_ones.append(f)
-
+            success = False
+            for k in filter.keys():
+                # delete spaces and symbols from the names using regex to have only the letters
+                k_simplified = re.sub(r'[^a-zA-Z]', '', k).lower()
+                f_simplified = re.sub(r'[^a-zA-Z]', '', f).lower()
+                if f_simplified in k_simplified:
+                    filter[k] = status
+                    success_ones.append(k)
+                    success = True
+            if not success:
+                failed_ones.append(f)
+                    
     if failed_ones:
         context.bot.send_message(
             update.message.from_user.id,
-            f"Failed to set the following: {', '.join(failed_ones)}\nPlease make sure you typed each name correctly (the names are case sensitive)."
+            f"Failed to set the following: {', '.join(failed_ones)}\nPlease make sure you typed each name correctly.\nThe case is unsensitive and you don't need to put the complete name of each selection, just a part of it. If the name has more than one word, you can use an underscore instead of a space."
         )
-    else:
+    if success_ones:
         context.bot.send_message(
             update.message.from_user.id,
             f"{name.title()} updated successfully"
