@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from dotenv import load_dotenv
 import psycopg2
 from utils import *
@@ -6,21 +7,24 @@ from querys import *
 
 from telegram import Update, ParseMode, ReplyKeyboardMarkup
 from telegram.ext import  CallbackContext, ConversationHandler
+import os
 
-DISABLED = "DISABLED"
-ENABLED = "ENABLED"
-CATEGORIES = "CATEGORIES"
-CUISINES = "CUISINES"
-DATES = "DATES"
-HEARTS = "HEARTS"
-TIME = "TIME"
-VALENTINES = "VALENTINES"
-CHRISTMAS = "CHRISTMAS"
-EASTER = "EASTER"
-SUMMER = "SUMMER"
-HOLIDAYS = "HOLIDAYS"
-MIN = "MIN"
-MAX = "MAX"
+load_dotenv()
+
+DISABLED = os.environ["DISABLED"]
+ENABLED = os.environ["ENABLED"]
+CATEGORIES = os.environ["CATEGORIES"]
+CUISINES = os.environ["CUISINES"]
+DATES = os.environ["DATES"]
+HEARTS = os.environ["HEARTS"]
+TIME = os.environ["TIME"]
+VALENTINES = os.environ["VALENTINES"]
+CHRISTMAS = os.environ["CHRISTMAS"]
+EASTER = os.environ["EASTER"]
+SUMMER = os.environ["SUMMER"]
+HOLIDAYS = os.environ["HOLIDAYS"]
+MIN = os.environ["MIN"]
+MAX = os.environ["MAX"]
 GET_CHART= range(1)
 
 def send_random_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
@@ -37,6 +41,57 @@ def send_random_recipe(update: Update, context: CallbackContext, connection: psy
     filters[HEARTS].add(hearts)
 
     query = get_random_recipe(categories, cuisines, min_date_updated, max_date_updated, hearts, min_time, max_time)
+    recipe = execute_fetch_query(query, connection)
+    if not recipe:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "I couldn't find any recipe with the given filters. Please try again with different filters."
+        )
+        return
+    recipe = recipe[0]
+    recipe_html = create_recipe_html(recipe)
+    context.bot.send_message(
+        update.message.from_user.id,
+        recipe_html,
+        parse_mode=ParseMode.HTML
+    )
+
+def send_top_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
+    """
+    This handler sends a recipe from the database sorted by a parameter
+    """
+    sort_columns = {DATES: "UpdatedDate", HEARTS: "Hearts", TIME: "TotalTime"}
+    if not context.args or context.args[0].upper() not in sort_columns.keys():
+        context.bot.send_message(
+            update.message.from_user.id,
+            "Please provide a valid sorting parameter: 'dates', 'hearts' or 'time'. You can also add an extra parameter 'min' or 'max' if you want the top max or top min.\n Example: /top_recipe dates min"
+        )
+        return
+    order_by = sort_columns[context.args[0].upper()]
+    if len(context.args) > 1:
+        if context.args[1].upper() == "MIN":
+            order_by += " ASC"
+        elif context.args[1].upper() == "MAX":
+            order_by += " DESC"
+        else:
+            context.bot.send_message(
+                update.message.from_user.id,
+                "Please provide a valid extra parameter: 'min' or 'max'"
+            )
+            return
+    else:
+        order_by += " DESC"
+
+    categories = [category for category, status in filters[CATEGORIES].items() if status == ENABLED]
+    cuisines = [cuisine for cuisine, status in filters[CUISINES].items() if status == ENABLED]
+    min_date_updated = filters[DATES][MIN]
+    max_date_updated = filters[DATES][MAX]
+    min_time = filters[TIME][MIN]
+    max_time = filters[TIME][MAX]
+    hearts = filters[HEARTS].pop()
+    filters[HEARTS].add(hearts)
+
+    query = get_top_recipe(categories, cuisines, min_date_updated, max_date_updated, hearts, min_time, max_time, order_by)
     recipe = execute_fetch_query(query, connection)
     if not recipe:
         context.bot.send_message(
@@ -85,6 +140,61 @@ def send_random_holiday_recipe(update: Update, context: CallbackContext, connect
         parse_mode=ParseMode.HTML
     )
 
+def send_top_holiday_recipe(update: Update, context: CallbackContext, connection: psycopg2.extensions.connection, filters: dict) -> None:
+    """
+    This handler sends a recipe from the database that matches the holidays and is sorted by a parameter
+    """
+    sort_columns = {DATES: "UpdatedDate", HEARTS: "Hearts", TIME: "TotalTime"}
+    if not context.args or context.args[0].upper() not in sort_columns.keys():
+        context.bot.send_message(
+            update.message.from_user.id,
+            "Please provide a valid sorting parameter: 'dates', 'hearts' or 'time'. You can also add an extra parameter 'min' or 'max' if you want the top max or top min.\n Example: /top_holiday_recipe dates min"
+        )
+        return
+    order_by = sort_columns[context.args[0].upper()]
+    if len(context.args) > 1:
+        if context.args[1].upper() == "MIN":
+            order_by += " ASC"
+        elif context.args[1].upper() == "MAX":
+            order_by += " DESC"
+        else:
+            context.bot.send_message(
+                update.message.from_user.id,
+                "Please provide a valid extra parameter: 'min' or 'max'"
+            )
+            return
+    else:
+        order_by += " DESC"
+
+    categories = [category for category, status in filters[CATEGORIES].items() if status == ENABLED]
+    cuisines = [cuisine for cuisine, status in filters[CUISINES].items() if status == ENABLED]
+    min_date_updated = filters[DATES][MIN]
+    max_date_updated = filters[DATES][MAX]
+    min_time = filters[TIME][MIN]
+    max_time = filters[TIME][MAX]
+    hearts = filters[HEARTS].pop()
+    filters[HEARTS].add(hearts)
+    valentines = filters[HOLIDAYS][VALENTINES]
+    christmas = filters[HOLIDAYS][CHRISTMAS]
+    easter = filters[HOLIDAYS][EASTER]
+    summer = filters[HOLIDAYS][SUMMER]
+
+    query = get_top_holiday_recipe(categories, cuisines, min_date_updated, max_date_updated, hearts, min_time, max_time, valentines, christmas, easter, summer, order_by)
+    recipe = execute_fetch_query(query, connection)
+    if not recipe:
+        context.bot.send_message(
+            update.message.from_user.id,
+            "I couldn't find any recipe with the given filters. Please try again with different filters."
+        )
+        return
+    recipe = recipe[0]
+    recipe_html = create_recipe_html(recipe)
+    context.bot.send_message(
+        update.message.from_user.id,
+        recipe_html,
+        parse_mode=ParseMode.HTML
+    )
+
 def send_filter(update: Update, context: CallbackContext, filter: dict, name: str) -> None:
     """
     This handler sends the list of some filter of the recipes and whether they are enabled or disabled
@@ -117,30 +227,47 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
     if len(context.args) == 0 or not context.args[0].upper() in [ENABLED, DISABLED]:
         context.bot.send_message(
             update.message.from_user.id,
-            "Please indicate whether you want to enable or disable.\n The status must be either 'ENABLED' or 'DISABLED'"
+            f"Please indicate whether you want to enable or disable.\n The status must be either 'ENABLED' or 'DISABLED'.\n The command must be like this: \n/set_{name.lower()} ENABLED/DISABLED selection1 selection2 ...\n/set_{name.lower()} ENABLED/DISABLED (to modify all {name.lower()})\nThe case is unsensitive and you don't need to put the complete name of each selection, just a part of it. If the name has more than one word, you can use an underscore instead of a space."
         )
         return
     status = context.args[0].upper()
     list_to_set = context.args[1:] if len(context.args) > 1 else filter.keys()
     list_to_set = [f for f in list_to_set if f is not None]
 
+    context.bot.send_message(
+        update.message.from_user.id,
+        "Updating..."
+    )
+
     failed_ones = []
+    success_ones = []
     for f in list_to_set:
         f.replace("_", " ")
         if f in filter:
             filter[f] = status
+            success_ones.append(f)
         else:
-            failed_ones.append(f)
-
+            success = False
+            for k in filter.keys():
+                # delete spaces and symbols from the names using regex to have only the letters
+                k_simplified = re.sub(r'[^a-zA-Z]', '', k).lower()
+                f_simplified = re.sub(r'[^a-zA-Z]', '', f).lower()
+                if f_simplified in k_simplified:
+                    filter[k] = status
+                    success_ones.append(k)
+                    success = True
+            if not success:
+                failed_ones.append(f)
+                    
     if failed_ones:
         context.bot.send_message(
             update.message.from_user.id,
-            f"Failed to set the following: {', '.join(failed_ones)}\nPlease make sure you typed each name correctly."
+            f"Failed to set the following: {', '.join(failed_ones)}\nPlease make sure you typed each name correctly.\nThe case is unsensitive and you don't need to put the complete name of each selection, just a part of it. If the name has more than one word, you can use an underscore instead of a space."
         )
-    else:
+    if success_ones:
         context.bot.send_message(
             update.message.from_user.id,
-            f"All {name.lower()} updated successfully"
+            f"{name.title()} updated successfully"
         )
 
 def send_dates(update: Update, context: CallbackContext, filter: dict) -> None:
@@ -213,7 +340,7 @@ def set_hearts(update: Update, context: CallbackContext, filter: set) -> None:
     if len(context.args) != 1:
         context.bot.send_message(
             update.message.from_user.id,
-            "Please provide only one number"
+            "Please provide one number"
         )
         return
 
@@ -255,7 +382,7 @@ def set_time(update: Update, context: CallbackContext, filter: dict) -> None:
     if len(context.args) != 2:
         context.bot.send_message(
             update.message.from_user.id,
-            "Please provide only two numbers"
+            "Please provide only two numbers (in minutes)"
         )
         return
 
@@ -282,18 +409,18 @@ def send_holidays(update: Update, context: CallbackContext, filter: dict) -> Non
     """
     holidays = ""
     if filter[VALENTINES]:
-        holidays += "Valentine's Day\n"
+        holidays += "💌 Valentine's Day\n"
     if filter[CHRISTMAS]:
-        holidays += "Christmas\n"
+        holidays += "🎄 Christmas\n"
     if filter[EASTER]:
-        holidays += "Easter\n"
+        holidays += "🐰 Easter\n"
     if filter[SUMMER]:
-        holidays += "Summer\n"
+        holidays += "🏖️ Summer\n"
 
     if len(holidays) == 0:
         context.bot.send_message(
             update.message.from_user.id,
-            "No holidays allowed"
+            "All holidays disabled"
         )
         return
 
@@ -401,6 +528,7 @@ def start(update: Update, context: CallbackContext):
                                 "I'm here to help you discover the perfect recipe to satisfy your every craving, from quick and easy treats to elaborate showstoppers. ✨ \n\n"
                                 "🚀 Here are a few quick commands to get you started 🚀\n\n"
                                 "/random_recipe - Let fate decide your next culinary adventure with a random recipe suggestion! \n"
+                                "/top_recipe - Explore the best recipes based on your preferences. \n\n"
                                 "/set_categories - Narrow down your options by selecting your preferred dessert category.\n"
                                 "/set_cuisines - Explore the flavors of the world by choosing your desired cuisine.\n"
                                 "/set_dates - Indulge in seasonal delights by filtering recipes based on specific dates\n"
@@ -409,6 +537,7 @@ def start(update: Update, context: CallbackContext):
                                 "/set_holidays - Celebrate special occasions with recipes tailored to your favorite holidays.\n"
                                 "/clean_filters - Reset the filters. \n"
                                 "/random_holiday_recipe - Let Postrecito surprise you with a delectable recipe from your chosen holiday.\n"
+                                "/top_holiday_recipe - Discover the top holiday recipe based on your preferences.\n"
                                 "/send_menu_charts - Delve into a world of charts and graphs showcasing our vast recipe collection.\n\n"
                                 "Remember, I'm always here to help you find the perfect recipe for your sweet tooth. _Happy baking and indulging!_✨"
                             )

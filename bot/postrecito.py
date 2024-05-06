@@ -13,20 +13,22 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 from commands import *
 
-DISABLED = "DISABLED"
-ENABLED = "ENABLED"
-CATEGORIES = "CATEGORIES"
-CUISINES = "CUISINES"
-DATES = "DATES"
-HEARTS = "HEARTS"
-TIME = "TIME"
-VALENTINES = "VALENTINES"
-CHRISTMAS = "CHRISTMAS"
-EASTER = "EASTER"
-SUMMER = "SUMMER"
-HOLIDAYS = "HOLIDAYS"
-MIN = "MIN"
-MAX = "MAX"
+load_dotenv()
+
+DISABLED = os.environ["DISABLED"]
+ENABLED = os.environ["ENABLED"]
+CATEGORIES = os.environ["CATEGORIES"]
+CUISINES = os.environ["CUISINES"]
+DATES = os.environ["DATES"]
+HEARTS = os.environ["HEARTS"]
+TIME = os.environ["TIME"]
+VALENTINES = os.environ["VALENTINES"]
+CHRISTMAS = os.environ["CHRISTMAS"]
+EASTER = os.environ["EASTER"]
+SUMMER = os.environ["SUMMER"]
+HOLIDAYS = os.environ["HOLIDAYS"]
+MIN = os.environ["MIN"]
+MAX = os.environ["MAX"]
 GET_CHART = range(1)
 
 def wrong_command(update: Update, context: CallbackContext) -> None:
@@ -74,9 +76,11 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("clean_filters", partial(clean_filters, filters=filters, connection=connection)))
     dispatcher.add_handler(CommandHandler(TIME, partial(send_time, time=filters[TIME])))
     dispatcher.add_handler(CommandHandler("set_time", partial(set_time, filter=filters[TIME]), pass_args=True))
-    dispatcher.add_handler(CommandHandler(HOLIDAYS, partial(send_holidays, holidays=filters[HOLIDAYS])))
+    dispatcher.add_handler(CommandHandler(HOLIDAYS, partial(send_holidays, filter=filters[HOLIDAYS])))
     dispatcher.add_handler(CommandHandler("set_holidays", partial(set_holidays, filter=filters[HOLIDAYS]), pass_args=True))
     dispatcher.add_handler(CommandHandler("random_holiday_recipe", partial(send_random_holiday_recipe, connection=connection, filters=filters)))
+    dispatcher.add_handler(CommandHandler("top_holiday_recipe", partial(send_top_holiday_recipe, connection=connection, filters=filters), pass_args=True))
+    dispatcher.add_handler(CommandHandler("top_recipe", partial(send_top_recipe, connection=connection, filters=filters), pass_args=True))
     dispatcher.add_handler(CommandHandler("start", start))
     conversation_handler = ConversationHandler(
         entry_points=[CommandHandler("send_menu_charts",send_menu_charts )],

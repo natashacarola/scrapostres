@@ -7,13 +7,16 @@ from querys import *
 import matplotlib.pyplot as plt
 import pandas as pd
 import io
+from dotenv import load_dotenv
 
 from telegram import Update
 from telegram.ext import CallbackContext
 
 
-DISABLED = "DISABLED"
-ENABLED = "ENABLED"
+load_dotenv()
+
+DISABLED = os.environ["DISABLED"]
+ENABLED = os.environ["ENABLED"]
 
 def get_connection() -> Union[psycopg2.extensions.connection, None]:
     try:
