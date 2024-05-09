@@ -249,13 +249,16 @@ def set_filter(update: Update, context: CallbackContext, filter: dict, name: str
         else:
             success = False
             for k in filter.keys():
-                # delete spaces and symbols from the names using regex to have only the letters
-                k_simplified = re.sub(r'[^a-zA-Z]', '', k).lower()
-                f_simplified = re.sub(r'[^a-zA-Z]', '', f).lower()
-                if f_simplified in k_simplified:
-                    filter[k] = status
-                    success_ones.append(k)
-                    success = True
+                try:
+                    # delete spaces and symbols from the names using regex to have only the letters
+                    k_simplified = re.sub(r'[^a-zA-Z]', '', k).lower()
+                    f_simplified = re.sub(r'[^a-zA-Z]', '', f).lower()
+                    if f_simplified in k_simplified:
+                        filter[k] = status
+                        success_ones.append(k)
+                        success = True
+                except TypeError:
+                    continue
             if not success:
                 failed_ones.append(f)
                     
